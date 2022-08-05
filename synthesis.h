@@ -18,6 +18,16 @@ typedef enum
     Unrealizable
 } Status;
 
+typedef enum
+{
+    To_winning_state,
+    To_failure_state,
+    Accepting_edge,
+    NoWay,
+    // for Y, there is some X such that \delta(s,X\cup Y) has no successor
+    Incomplete_Y
+} Signal;
+
 // main entry
 bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var);
 
@@ -40,6 +50,8 @@ public:
     // for blocking failure state
     static map<ull, ull> bddP_to_afP;
 
+    static int call_sat;
+
     Syn_Frame(aalta_formula *);
     ~Syn_Frame() { delete state_in_bdd_; }
     Status CheckRealizability();
@@ -54,7 +66,7 @@ public:
 
     // tell the frame the result of current choice
     // and the frame performs some operations
-    void process_signal(Status signal);
+    void process_signal(Signal signal);
 
     // whther the current frame is
     // the beginning of a sat trace
@@ -65,7 +77,7 @@ public:
 
     inline bool IsNotTryingY()
     {
-        return current_Y_==NULL;
+        return current_Y_ == NULL;
     }
 
     // return the constraint on edge
@@ -75,7 +87,7 @@ public:
 
     inline void SetTraceBeginning() { is_trace_beginning_ = true; }
 
-    void print_info();
+    void PrintInfo();
 
 private:
     FormulaInBdd *state_in_bdd_;

@@ -1,2 +1,2 @@
-.inputs: a, b
-.outputs: c
+.inputs: p1 p2
+.outputs: p3

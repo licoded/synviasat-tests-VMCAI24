@@ -48,9 +48,9 @@ namespace aalta
 				tmp_f = aalta_formula(aalta_formula::Not, NULL, tmp_f).unique();
 			}
 			if (Syn_Frame::var_Y.find(it->first) != Syn_Frame::var_Y.end())
-				Y_af = aalta_formula(aalta_formula::And, Y_af, tmp_f).unique();
+				Y_af = ((Y_af == aalta_formula::TRUE()) ? tmp_f : aalta_formula(aalta_formula::And, Y_af, tmp_f).unique());
 			else
-				X_af = aalta_formula(aalta_formula::And, X_af, tmp_f).unique();
+				X_af = ((X_af == aalta_formula::TRUE()) ? tmp_f : aalta_formula(aalta_formula::And, X_af, tmp_f).unique());
 		}
 		s += ")";
 		traces_.push_back(s);
@@ -71,9 +71,9 @@ namespace aalta
 			s += tmp + ", ";
 			int op = (((*it)->oper()) == aalta_formula::Not) ? (((*it)->r_af())->oper()) : ((*it)->oper());
 			if (Syn_Frame::var_Y.find(op) != Syn_Frame::var_Y.end())
-				Y_af = aalta_formula(aalta_formula::And, Y_af, (*it)).unique();
+				Y_af = ((Y_af == aalta_formula::TRUE()) ? (*it) : aalta_formula(aalta_formula::And, Y_af, (*it)).unique());
 			else
-				X_af = aalta_formula(aalta_formula::And, X_af, (*it)).unique();
+				X_af = ((X_af == aalta_formula::TRUE()) ? (*it) : aalta_formula(aalta_formula::And, X_af, (*it)).unique());
 		}
 		s += ")";
 		traces_.push_back(s);

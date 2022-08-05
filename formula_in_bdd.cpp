@@ -14,46 +14,51 @@ aalta_formula *FormulaInBdd::src_formula_ = NULL;
 DdNode *FormulaInBdd::TRUE_bddP_;
 DdNode *FormulaInBdd::FALSE_bddP_;
 
-void FormulaInBdd::InitBdd4LTLf(aalta_formula *src_formula)
+void FormulaInBdd::InitBdd4LTLf(aalta_formula *src_formula, bool is_xnf)
 {
     src_formula_ = src_formula;
     global_bdd_manager_ = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
     TRUE_bddP_ = Cudd_ReadOne(global_bdd_manager_);
     FALSE_bddP_ = Cudd_ReadLogicZero(global_bdd_manager_);
-    CreatedMap4AaltaP2BddP(src_formula_);
+    CreatedMap4AaltaP2BddP(src_formula_, is_xnf);
     // PrintMapInfo();
 }
 
-void FormulaInBdd::CreatedMap4AaltaP2BddP(aalta_formula *af)
+void FormulaInBdd::CreatedMap4AaltaP2BddP(aalta_formula *af, bool is_xnf)
 {
     if (af == NULL)
         return;
     int op = af->oper();
     if (op == aalta_formula::True || op == aalta_formula::False)
-        return; // to be checked
+        return;
     if (op == aalta_formula::And || op == aalta_formula::Or)
     {
-        CreatedMap4AaltaP2BddP(af->l_af());
-        CreatedMap4AaltaP2BddP(af->r_af());
+        CreatedMap4AaltaP2BddP(af->l_af(), is_xnf);
+        CreatedMap4AaltaP2BddP(af->r_af(), is_xnf);
         return;
     }
     if (op == aalta_formula::Not)
     {
-        CreatedMap4AaltaP2BddP(af->r_af());
+        CreatedMap4AaltaP2BddP(af->r_af(), is_xnf);
         return;
     }
     af = af->unique();
-    // aaltaP_to_bddP_[ull(af)] = ull(Cudd_bddNewVar(global_bdd_manager_));
-    GetPaOfXnf(af);
+    if (is_xnf)
+        GetPaOfXnf(af);
+    else
+    {
+        if (aaltaP_to_bddP_.find(ull(af)) == aaltaP_to_bddP_.end())
+            aaltaP_to_bddP_[ull(af)] = ull(Cudd_bddNewVar(global_bdd_manager_));
+    }
     if (op == aalta_formula::Next || op == aalta_formula::WNext)
     {
-        CreatedMap4AaltaP2BddP(af->r_af());
+        CreatedMap4AaltaP2BddP(af->r_af(), is_xnf);
         return;
     }
     else if (op == aalta_formula::Until || op == aalta_formula::Release)
     {
-        CreatedMap4AaltaP2BddP(af->l_af());
-        CreatedMap4AaltaP2BddP(af->r_af());
+        CreatedMap4AaltaP2BddP(af->l_af(), is_xnf);
+        CreatedMap4AaltaP2BddP(af->r_af(), is_xnf);
         return;
     }
     else if (op >= 11)
@@ -71,21 +76,24 @@ void FormulaInBdd::GetPaOfXnf(aalta_formula *psi)
     assert(op != aalta_formula::And && op != aalta_formula::Or && op != aalta_formula::Not);
     if (op == aalta_formula::Next || op == aalta_formula::WNext || op >= 11)
     {
-        aaltaP_to_bddP_[ull(psi)] = ull(Cudd_bddNewVar(global_bdd_manager_));
+        if (aaltaP_to_bddP_.find(ull(psi)) == aaltaP_to_bddP_.end())
+            aaltaP_to_bddP_[ull(psi)] = ull(Cudd_bddNewVar(global_bdd_manager_));
         return;
     }
     else if (op == aalta_formula::Until)
     {
         // X_U=X(psi)
         aalta_formula *X_U = aalta_formula(aalta_formula::Next, NULL, psi).unique();
-        aaltaP_to_bddP_[ull(X_U)] = ull(Cudd_bddNewVar(global_bdd_manager_));
+        if (aaltaP_to_bddP_.find(ull(X_U)) == aaltaP_to_bddP_.end())
+            aaltaP_to_bddP_[ull(X_U)] = ull(Cudd_bddNewVar(global_bdd_manager_));
         return;
     }
     else if (op == aalta_formula::Release)
     {
         // N_R=N(psi)
         aalta_formula *N_R = aalta_formula(aalta_formula::WNext, NULL, psi).unique();
-        aaltaP_to_bddP_[ull(N_R)] = ull(Cudd_bddNewVar(global_bdd_manager_));
+        if (aaltaP_to_bddP_.find(ull(N_R)) == aaltaP_to_bddP_.end())
+            aaltaP_to_bddP_[ull(N_R)] = ull(Cudd_bddNewVar(global_bdd_manager_));
         return;
     }
 }
