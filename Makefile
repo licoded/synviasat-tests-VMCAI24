@@ -9,7 +9,7 @@ SOLVER			=	minisat/core/Solver.cc aaltasolver.cpp solver.cpp carsolver.cpp
 
 CHECKING		=	ltlfchecker.cpp carchecker.cpp evidence.cpp
 
-SYNTHESIS		=	synthesis.cpp formula_in_bdd.cpp
+SYNTHESIS		=	synthesis.cpp formula_in_bdd.cpp generalizer.cpp
 
 BDD_LIB			=	deps/CUDD-install/lib/libcudd.a
 

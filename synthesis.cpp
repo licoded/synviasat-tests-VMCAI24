@@ -4,6 +4,7 @@
 
 #include "synthesis.h"
 #include "carchecker.h"
+#include "generalizer.h"
 
 using namespace std;
 using namespace aalta;
@@ -16,30 +17,33 @@ set<int> Syn_Frame::var_Y;
 unordered_set<ull> Syn_Frame::winning_state;
 unordered_set<ull> Syn_Frame::failure_state;
 map<ull, ull> Syn_Frame::bddP_to_afP;
+int Syn_Frame::call_sat;
 
 bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
 {
-    cout<<src_formula->to_string()<<endl;
-    // partition atoms and save index values respectively
+    cout << src_formula->to_string() << endl;
+    //  partition atoms and save index values respectively
     PartitionAtoms(src_formula, env_var);
+
+    Syn_Frame::call_sat = 0;
 
     // number of variables
     Syn_Frame::num_varX_ = Syn_Frame::var_X.size();
     Syn_Frame::num_varY_ = Syn_Frame::var_Y.size();
 
     // initializa utils of bdd
-    FormulaInBdd::InitBdd4LTLf(src_formula);
+    FormulaInBdd::InitBdd4LTLf(src_formula, false);
     Syn_Frame::winning_state.insert(ull(FormulaInBdd::TRUE_bddP_));
     Syn_Frame::failure_state.insert(ull(FormulaInBdd::FALSE_bddP_));
     Syn_Frame::bddP_to_afP[ull(FormulaInBdd::FALSE_bddP_)] = ull(aalta_formula::FALSE());
 
     list<Syn_Frame *> searcher;
-    Syn_Frame *init = new Syn_Frame(xnf(src_formula));
+    Syn_Frame *init = new Syn_Frame(src_formula); // xnf(src_formula)
     searcher.push_back(init);
     while (true)
     {
         Syn_Frame *cur_frame = searcher.back();
-        cur_frame->print_info();
+        cur_frame->PrintInfo();
         Status peek = cur_frame->CheckRealizability();
         switch (peek)
         {
@@ -54,7 +58,7 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
             Syn_Frame::winning_state.insert(ull(cur_frame->GetBddPointer()));
             delete cur_frame;
             searcher.pop_back();
-            (searcher.back())->process_signal(Realizable);
+            (searcher.back())->process_signal(To_winning_state);
             break;
         }
         case Unrealizable:
@@ -67,8 +71,8 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
             }
             Syn_Frame::failure_state.insert(ull(cur_frame->GetBddPointer()));
             Syn_Frame::bddP_to_afP[ull(cur_frame->GetBddPointer())] = ull(cur_frame->GetFormulaPointer());
-            delete cur_frame;//////////////
-            searcher.pop_back();///////////
+            delete cur_frame;    //////////////
+            searcher.pop_back(); ///////////
 
             // encounter Unrealizable
             // backtrack the beginning of the sat trace
@@ -77,7 +81,7 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
                 auto tmp = searcher.back();
                 if (tmp->IsTraceBeginning())
                 {
-                    tmp->process_signal(Unrealizable);
+                    tmp->process_signal(To_failure_state);
                     break;
                 }
                 else
@@ -91,11 +95,11 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
         case Unknown:
         {
             Status res = Expand(searcher);
-            if (res!=Unknown)
+            if (res != Unknown)
             { //
                 delete cur_frame;
                 FormulaInBdd::QuitBdd4LTLf();
-                return res==Realizable;
+                return res == Realizable;
             }
             break;
         }
@@ -110,7 +114,7 @@ Syn_Frame::Syn_Frame(aalta_formula *af)
     X_constraint_ = aalta_formula::TRUE();
     current_Y_ = NULL;
     current_X_ = NULL;
-    is_trace_beginning_=false;
+    is_trace_beginning_ = false;
 }
 
 Status Syn_Frame::CheckRealizability()
@@ -123,26 +127,67 @@ Status Syn_Frame::CheckRealizability()
         return Unrealizable;
     if (EdgeConstraintIsUnsat(X_constraint_))
         return Realizable;
+    return Unknown;
 }
 
-void Syn_Frame::process_signal(Status signal)
+void Syn_Frame::process_signal(Signal signal)
 {
-    assert(signal != Unknown);
-    if (signal == Realizable)
+    switch (signal)
     {
-        aalta_formula *neg_cur_x = aalta_formula(aalta_formula::Not, NULL, current_X_).nnf();
-        X_constraint_ = (aalta_formula(aalta_formula::And, X_constraint_, neg_cur_x).simplify())->unique();
+    case To_winning_state:
+    {
+        aalta_formula *x_reduced = Generalize(state_in_bdd_->GetFormulaPointer(), current_Y_, current_X_, To_winning_state);
+        aalta_formula *neg_x_reduced = aalta_formula(aalta_formula::Not, NULL, x_reduced).nnf();
+        X_constraint_ = (aalta_formula(aalta_formula::And, X_constraint_, neg_x_reduced).simplify())->unique();
         current_X_ = NULL;
+        break;
     }
-    else
+    case To_failure_state:
     {
-        aalta_formula *neg_cur_y = aalta_formula(aalta_formula::Not, NULL, current_Y_).nnf();
-        Y_constraint_ = (aalta_formula(aalta_formula::And, Y_constraint_, neg_cur_y).simplify())->unique();
+        aalta_formula *y_reduced = Generalize(state_in_bdd_->GetFormulaPointer(), current_Y_, current_X_, To_failure_state);
+        aalta_formula *neg_y_reduced = aalta_formula(aalta_formula::Not, NULL, y_reduced).nnf();
+        Y_constraint_ = (aalta_formula(aalta_formula::And, Y_constraint_, neg_y_reduced).simplify())->unique();
 
         X_constraint_ = aalta_formula::TRUE();
 
         current_Y_ = NULL;
         current_X_ = NULL;
+        break;
+    }
+    case Accepting_edge:
+    {
+        aalta_formula *x_reduced = Generalize(state_in_bdd_->GetFormulaPointer(), current_Y_, current_X_, Accepting_edge);
+        aalta_formula *neg_x_reduced = aalta_formula(aalta_formula::Not, NULL, x_reduced).nnf();
+        X_constraint_ = (aalta_formula(aalta_formula::And, X_constraint_, neg_x_reduced).simplify())->unique();
+        current_X_ = NULL;
+        break;
+    }
+    case Incomplete_Y:
+    {
+        aalta_formula *y_reduced = Generalize(state_in_bdd_->GetFormulaPointer(), current_Y_, NULL, Incomplete_Y);
+        aalta_formula *neg_y_reduced = aalta_formula(aalta_formula::Not, NULL, y_reduced).nnf();
+        Y_constraint_ = (aalta_formula(aalta_formula::And, Y_constraint_, neg_y_reduced).simplify())->unique();
+
+        X_constraint_ = aalta_formula::TRUE();
+
+        current_Y_ = NULL;
+        current_X_ = NULL;
+        break;
+    }
+    case NoWay:
+    {
+        aalta_formula *state = state_in_bdd_->GetFormulaPointer();
+        state = aalta_formula(aalta_formula::And, state, X_constraint_).unique();
+        aalta_formula *y_reduced = Generalize(state, current_Y_, NULL, NoWay);
+        aalta_formula *neg_y_reduced = aalta_formula(aalta_formula::Not, NULL, y_reduced).nnf();
+        Y_constraint_ = (aalta_formula(aalta_formula::And, Y_constraint_, neg_y_reduced).simplify())->unique();
+
+        X_constraint_ = aalta_formula::TRUE();
+
+        current_Y_ = NULL;
+        current_X_ = NULL;
+        break;
+    }
     }
 }
 
@@ -154,7 +199,7 @@ aalta_formula *Syn_Frame::GetEdgeConstraint()
         return aalta_formula(aalta_formula::And, current_Y_, X_constraint_).unique();
 }
 
-void Syn_Frame::print_info()
+void Syn_Frame::PrintInfo()
 {
     cout << "formula: " << (state_in_bdd_->GetFormulaPointer())->to_string() << endl;
     cout << "Y constraint: " << Y_constraint_->to_string() << endl;
@@ -171,25 +216,27 @@ void Syn_Frame::SetTravelDirection(aalta_formula *Y, aalta_formula *X)
     if (current_Y_ == NULL)
         current_Y_ = Y;
     current_X_ = X;
-    cout<<"set: Y = "<<Y->to_string()<<", X = "<<X->to_string()<<endl;
+    cout << "set: Y = " << Y->to_string() << ", X = " << X->to_string() << endl;
 }
 
 Status Expand(list<Syn_Frame *> &searcher)
 {
+    // cout << (++(Syn_Frame::call_sat)) << "time(s) sat call" << endl
+    //      << "call before stack size: " << searcher.size() << endl;
     Syn_Frame *tp_frame = searcher.back();
     aalta_formula *edge_constraint = tp_frame->GetEdgeConstraint();
     aalta_formula *block_formula = ConstructBlockFormula(searcher, edge_constraint);
     aalta_formula *f = aalta_formula(aalta_formula::And, tp_frame->GetFormulaPointer(), block_formula).unique();
+    cout << f->to_string() << endl;
     f = f->add_tail();
     f = f->remove_wnext();
     f = f->simplify();
-    // f = f->split_next();
+    f = f->split_next();
     CARChecker checker(f, false, true);
     if (checker.check())
     { // sat
         vector<pair<aalta_formula *, aalta_formula *>> *tr = checker.get_model_for_synthesis();
         checker.print_evidence();
-        // tp_frame->SetTravelDirection(((*tr)[0]).first, ((*tr)[0]).second);
         tp_frame->SetTraceBeginning();
         for (int i = 0; i < ((tr->size()) - 1); ++i)
         {
@@ -199,12 +246,18 @@ Status Expand(list<Syn_Frame *> &searcher)
             aalta_formula *predecessor = (searcher.back())->GetFormulaPointer();
             unordered_set<int> edge;
             Y_edge->to_set(edge);
+            if (CheckCompleteY(predecessor, edge) != Tt)
+            {
+                (searcher.back())->process_signal(Incomplete_Y);
+                return Unknown;
+            }
             X_edge->to_set(edge);
             aalta_formula *successor = FormulaProgression(predecessor, edge);
-            successor = xnf(successor);
+            // successor = xnf(successor);
             Syn_Frame *frame = new Syn_Frame(successor);
             searcher.push_back(frame);
         }
+        // the last position is the accepting edge
         aalta_formula *Y_edge = (tr->back()).first;
         aalta_formula *end_state = (searcher.back())->GetFormulaPointer();
         unordered_set<int> edge;
@@ -220,37 +273,38 @@ Status Expand(list<Syn_Frame *> &searcher)
                 Syn_Frame::winning_state.insert(ull((searcher.back())->GetBddPointer()));
                 delete searcher.back();
                 searcher.pop_back();
-                (searcher.back())->process_signal(Realizable);
+                (searcher.back())->process_signal(To_winning_state);
             }
         }
         else
         {
             aalta_formula *X_edge = (tr->back()).second;
             (searcher.back())->SetTravelDirection(Y_edge, X_edge);
-            (searcher.back())->process_signal(Realizable);
+            (searcher.back())->process_signal(Accepting_edge);
         }
     }
     else
     { // unsat
-        if(tp_frame->IsNotTryingY())
-        {// current frame is unrealizable immediately
-            if(searcher.size()==1)
+        if (tp_frame->IsNotTryingY())
+        { // current frame is unrealizable immediately
+            if (searcher.size() == 1)
             {
                 return Unrealizable;
             }
             else
             {
-                auto bdd_ptr=(searcher.back())->GetBddPointer();
+                auto bdd_ptr = (searcher.back())->GetBddPointer();
                 Syn_Frame::failure_state.insert(ull(bdd_ptr));
-                Syn_Frame::bddP_to_afP[ull(bdd_ptr)]=ull((searcher.back())->GetFormulaPointer());
+                Syn_Frame::bddP_to_afP[ull(bdd_ptr)] = ull((searcher.back())->GetFormulaPointer());
                 delete searcher.back();
                 searcher.pop_back();
-                (searcher.back())->process_signal(Unrealizable);
+                (searcher.back())->process_signal(To_failure_state);
             }
         }
         else
-            tp_frame->process_signal(Unrealizable);
+            tp_frame->process_signal(NoWay);
     }
+    // cout << "call after stack size: " << searcher.size() << endl;
     return Unknown;
 }
 
@@ -299,7 +353,44 @@ aalta_formula *FormulaProgression(aalta_formula *predecessor, unordered_set<int>
     {
         return predecessor->r_af();
     }
-    assert(op != aalta_formula::Until && op != aalta_formula::Release);
+    // if predecessor is in XNF,
+    // the following two cases cannot appear
+    else if (op == aalta_formula::Until)
+    { // l U r = r | (l & X(l U r))
+        aalta_formula *first_part = FormulaProgression(predecessor->r_af(), edge);
+        if ((first_part->oper()) == aalta_formula::True)
+            return aalta_formula::TRUE();
+        aalta_formula *l_fp = FormulaProgression(predecessor->l_af(), edge);
+        aalta_formula *second_part = NULL;
+        if ((l_fp->oper()) == aalta_formula::True)
+            second_part = predecessor;
+        else if ((l_fp->oper()) == aalta_formula::False)
+            return first_part;
+        else
+            second_part = aalta_formula(aalta_formula::And, l_fp, predecessor).unique();
+        if ((first_part->oper()) == aalta_formula::False)
+            return second_part;
+        else
+            return aalta_formula(aalta_formula::Or, first_part, second_part).unique();
+    }
+    else if (op == aalta_formula::Release)
+    { // l R r = r & (l | N(l R r))
+        aalta_formula *first_part = FormulaProgression(predecessor->r_af(), edge);
+        if ((first_part->oper()) == aalta_formula::False)
+            return aalta_formula::FALSE();
+        aalta_formula *l_fp = FormulaProgression(predecessor->l_af(), edge);
+        aalta_formula *second_part = NULL;
+        if ((l_fp->oper()) == aalta_formula::True)
+            return first_part;
+        else if ((l_fp->oper()) == aalta_formula::False)
+            second_part = predecessor;
+        else
+            second_part = aalta_formula(aalta_formula::Or, l_fp, predecessor).unique();
+        if ((first_part->oper()) == aalta_formula::True)
+            return second_part;
+        else
+            return aalta_formula(aalta_formula::And, first_part, second_part).unique();
+    }
 }
 
 bool BaseWinningAtY(aalta_formula *end_state, unordered_set<int> &Y)
@@ -362,7 +453,7 @@ aalta_formula *xnf(aalta_formula *phi)
         return aalta_formula(aalta_formula::Or, xnf(phi->r_af()), xnf_l_and_next_phi).unique();
     }
     else if (op == aalta_formula::Release)
-    { // l R r=xnf(r) & (xnf(l) | WX(l U r))
+    { // l R r=xnf(r) & (xnf(l) | WX(l R r))
         aalta_formula *wnext_phi = aalta_formula(aalta_formula::WNext, NULL, phi).unique();
         aalta_formula *xnf_l_or_wnext_phi = aalta_formula(aalta_formula::Or, xnf(phi->l_af()), wnext_phi).unique();
         return aalta_formula(aalta_formula::And, xnf(phi->r_af()), xnf_l_or_wnext_phi).unique();
@@ -375,7 +466,7 @@ aalta_formula *ConstructBlockFormula(list<Syn_Frame *> &prefix, aalta_formula *e
     aalta_formula *block_formula = edge_cons;
     for (auto it = Syn_Frame::failure_state.begin(); it != Syn_Frame::failure_state.end(); ++it)
     {
-        aalta_formula *tmp = Syn_Frame::bddP_to_afP[(*it)];
+        aalta_formula *tmp = (aalta_formula *)(Syn_Frame::bddP_to_afP[ull(*it)]);
         block_formula = aalta_formula(
                             aalta_formula::And, block_formula, global_not(tmp))
                             .unique();
