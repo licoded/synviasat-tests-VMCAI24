@@ -225,14 +225,20 @@ Status Expand(list<Syn_Frame *> &searcher)
     //      << "call before stack size: " << searcher.size() << endl;
     Syn_Frame *tp_frame = searcher.back();
     aalta_formula *edge_constraint = tp_frame->GetEdgeConstraint();
-    aalta_formula *block_formula = ConstructBlockFormula(searcher, edge_constraint);
-    aalta_formula *f = aalta_formula(aalta_formula::And, tp_frame->GetFormulaPointer(), block_formula).unique();
+    // aalta_formula *block_formula = ConstructBlockFormula(searcher, edge_constraint);
+    aalta_formula *f;
+    if(edge_constraint->oper()!=aalta_formula::True)
+        f = aalta_formula(aalta_formula::And, tp_frame->GetFormulaPointer(), edge_constraint).unique();
+    else
+        f = tp_frame->GetFormulaPointer();
     cout << f->to_string() << endl;
     f = f->add_tail();
     f = f->remove_wnext();
     f = f->simplify();
     f = f->split_next();
+    cout<<"Construct Checker: "<<f->to_string()<<endl;
     CARChecker checker(f, false, true);
+    BlockState(checker, searcher);
     if (checker.check())
     { // sat
         vector<pair<aalta_formula *, aalta_formula *>> *tr = checker.get_model_for_synthesis();
@@ -483,4 +489,21 @@ aalta_formula *ConstructBlockFormula(list<Syn_Frame *> &prefix, aalta_formula *e
     tmp = aalta_formula(aalta_formula::WNext, NULL, global_not(tmp)).unique();
     block_formula = aalta_formula(aalta_formula::And, block_formula, tmp).unique();
     return block_formula->simplify();
+}
+
+void BlockState(CARChecker &checker, list<Syn_Frame *> &prefix)
+{
+    aalta_formula::af_prt_set to_block;
+    for (auto it = Syn_Frame::failure_state.begin(); it != Syn_Frame::failure_state.end(); ++it)
+    {
+        aalta_formula *tmp = (aalta_formula *)(Syn_Frame::bddP_to_afP[ull(*it)]);
+        tmp->to_or_set(to_block);
+    }
+    for (auto it = prefix.begin(); it != prefix.end(); ++it)
+        ((*it)->GetFormulaPointer())->to_or_set(to_block);
+    for (auto it = to_block.begin(); it != to_block.end(); ++it)
+    {
+        cout<<"Add Constraint State: " << (*it)->to_string() << endl;
+        checker.add_constraint((*it),true,true);
+    }
 }

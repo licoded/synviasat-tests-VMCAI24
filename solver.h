@@ -62,6 +62,8 @@ public:
 	{
 		return solve_by_assumption (f, true);
 	}
+
+	void add_constraint (aalta_formula* c, bool ltlf = true, bool verbose = false);
 	
 protected:
 	////////////members
@@ -136,7 +138,18 @@ protected:
 	void print_coi ();
 	void print_formula_map ();
  	
- 	
+ 	//for adding constraint
+	aalta_formula* create_for_block (aalta_formula* c, bool ltlf);
+	aalta_formula* add_neg_to_var (aalta_formula* f);
+	void add_constraint_clauses (aalta_formula* c);
+	inline void set_max_used_id (const int id) 
+	{
+		if (max_used_id_ < id)
+			max_used_id_ = id;
+	}
+
+
+
  	
  	///////////inline functions
  	inline bool clauses_added (aalta_formula* f)

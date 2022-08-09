@@ -16,8 +16,39 @@ void usage()
 	cout << endl;
 }
 
+void test()
+{
+	string s0 = "(!(p7)) & (1 U (p6))";
+	string s1 = "1 U (p6)";
+	string input_f = "(" + s1 + ") & (p7) & (!(p6))";
+
+	aalta_formula *f, *c;
+	f = aalta_formula::TAIL();
+	aalta_formula::TRUE();
+	aalta_formula::FALSE();
+	f = aalta_formula(input_f.c_str(), true).unique();
+	f = f->nnf();
+	f = f->add_tail();
+	f = f->remove_wnext();
+	f = f->simplify();
+	f = f->split_next();
+	cout<<f->to_string()<<endl;
+
+	CARChecker checker(f, false, true);
+	checker.add_constraint(aalta_formula(s1.c_str(), true).unique());
+	cout<<(aalta_formula(s1.c_str(), true).unique())->to_string()<<endl;
+	checker.add_constraint(aalta_formula(s0.c_str(), true).unique());
+	cout<<(aalta_formula(s0.c_str(), true).unique())->to_string()<<endl;
+	bool res = checker.check();
+	cout << (res ? "sat" : "unsat") << endl;
+	if (res)
+		checker.print_evidence();
+}
+
 int main(int argc, char **argv)
 {
+	// test();
+	// return 0;
 	// ltlf_sat(argc, argv);
 	// return 0;
 	if (argc != 3)

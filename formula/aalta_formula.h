@@ -327,6 +327,7 @@ public:
   af_prt_set to_set(); //get the and elements in an And formula
   void to_set (af_prt_set&); //another version
 	af_prt_set to_or_set (); //get the or elements in an And formula
+  void to_or_set(af_prt_set&);
   void to_set (std::unordered_set<int>&); //for synthesis, save an edge
   
   hash_set<aalta_formula*> and_to_set();

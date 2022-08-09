@@ -128,13 +128,20 @@ inline bool EdgeConstraintIsUnsat(aalta_formula *edge)
     return !(checker.check());
 }
 
-// return edgecons && G!(PREFIX) && G!(failure)
-aalta_formula *ConstructBlockFormula(list<Syn_Frame *> &prefix, aalta_formula *edge_cons);
+// // return edgecons && G!(PREFIX) && G!(failure)
+// aalta_formula *ConstructBlockFormula(list<Syn_Frame *> &prefix, aalta_formula *edge_cons);
+void BlockState(CARChecker &checker, list<Syn_Frame *> &prefix);
 
 inline aalta_formula *global_not(aalta_formula *phi)
 {
     aalta_formula *not_phi = aalta_formula(aalta_formula::Not, NULL, phi).nnf();
     return aalta_formula(aalta_formula::Release, aalta_formula::FALSE(), not_phi).unique();
 }
+
+// inline aalta_formula *not_next(aalta_formula *phi)
+// {
+//     aalta_formula *next_phi = aalta_formula(aalta_formula::Next, NULL, phi);
+//     return aalta_formula(aalta_formula::Release, aalta_formula::FALSE(), not_phi).unique();
+// }
 
 #endif

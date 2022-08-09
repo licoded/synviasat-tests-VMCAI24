@@ -8,7 +8,7 @@ make: *** No rule to make target 'all'.  Stop.
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Thu Aug  4 15:43:47 2022
+# Make data base, printed on Mon Aug  8 16:08:21 2022
 
 # Variables
 
@@ -119,7 +119,7 @@ XDG_SESSION_DESKTOP = ubuntu
 # environment
 SSH_AUTH_SOCK = /run/user/1000/keyring/ssh
 # environment
-GIO_LAUNCHED_DESKTOP_FILE_PID = 3997
+GIO_LAUNCHED_DESKTOP_FILE_PID = 95356
 # automatic
 %F = $(notdir $%)
 # environment
@@ -286,7 +286,7 @@ LC_ADDRESS = zh_CN.UTF-8
 # environment
 LANG = C
 # environment
-VSCODE_PID = 4036
+VSCODE_PID = 95396
 # variable set hash-table stats:
 # Load=137/1024=13%, Rehash=0, Collisions=32/178=18%
 
@@ -296,9 +296,9 @@ VSCODE_PID = 4036
 
 # Directories
 
-# . (device 2053, inode 540365): 42 files, no impossibilities.
+# . (device 2053, inode 528520): 37 files, no impossibilities.
 
-# 42 files, no impossibilities in 1 directories.
+# 37 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -353,7 +353,7 @@ synthesis.cpp:
 # Not a target:
 Makefile:
 #  Implicit rule search has been done.
-#  Last modified 2022-07-28 18:10:18.908942916
+#  Last modified 2022-08-08 16:08:03.284780399
 #  File has been updated.
 #  Successfully updated.
 
@@ -500,12 +500,12 @@ ltlparser/ltlparser.c:
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 61 / storage = 783 B / avg = 12 B
-# current buf: size = 8162 B / used = 783 B / count = 61 / avg = 12 B
+# strcache buffers: 1 (0) / strings = 56 / storage = 711 B / avg = 12 B
+# current buf: size = 8162 B / used = 711 B / count = 56 / avg = 12 B
 
-# strcache performance: lookups = 111 / hit rate = 45%
+# strcache performance: lookups = 106 / hit rate = 47%
 # hash-table stats:
-# Load=61/8192=1%, Rehash=0, Collisions=1/111=1%
-# Finished Make data base on Thu Aug  4 15:43:47 2022
+# Load=56/8192=1%, Rehash=0, Collisions=1/106=1%
+# Finished Make data base on Mon Aug  8 16:08:22 2022
 
  

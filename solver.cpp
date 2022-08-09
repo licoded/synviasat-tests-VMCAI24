@@ -41,6 +41,117 @@
 		}
 	 }
 	 
+	 void Solver::add_constraint (aalta_formula* c, bool ltlf, bool verbose)
+	 {
+		if (verbose)
+			cout << "constraint formula is: " << c->to_string ()<< endl;
+		aalta_formula* f = create_for_block (c, ltlf);
+		if (verbose)
+			cout << "going to block in SAT solver is: " << f->to_string () << endl; 
+		if (verbose)
+		{
+			cout << "before adding constraint: " << endl;
+			print_clauses ();
+		}	
+		add_constraint_clauses (f);
+		add_clause (f->id());
+		if (verbose)
+		{
+			cout << "after adding constraint: " << endl;
+			print_clauses ();
+		}	
+		set_max_used_id (f->id());
+	 }
+
+	 aalta_formula* Solver::create_for_block (aalta_formula* c, bool ltlf)
+	 {
+		aalta_formula* res = aalta_formula (aalta_formula::Next, NULL, c).unique ();
+		res = res->split_next ();
+		res = add_neg_to_var (res);
+		if (ltlf)
+			res = aalta_formula (aalta_formula::Or, aalta_formula::TAIL(), res).unique ();
+		return res;
+	 }
+
+	 aalta_formula* Solver::add_neg_to_var (aalta_formula* f)
+	 {
+		aalta_formula* res, *left, *right;
+		switch (f->oper ())
+		{
+			case aalta_formula::And:
+				//left = aalta_formula (aalta_formula::Not, NULL, f->l_af()).unique ();
+				//right = aalta_formula (aalta_formula::Not, NULL, f->r_af()).unique ();
+				left = add_neg_to_var (f->l_af());
+				right = add_neg_to_var (f->r_af ());
+				res = aalta_formula (aalta_formula::Or, left, right).unique ();
+				break;
+			case aalta_formula::Or:
+				//left = aalta_formula (aalta_formula::Not, NULL, f->l_af()).unique ();
+				//right = aalta_formula (aalta_formula::Not, NULL, f->r_af()).unique ();
+				left = add_neg_to_var (f->l_af());
+				right = add_neg_to_var (f->r_af ());
+				res = aalta_formula (aalta_formula::And, left, right).unique ();
+				break;
+			case aalta_formula::Undefined:
+				cout << "Solver.cpp::add_neg_to_var: Error reach here!\n";
+ 				exit (0);
+			default://atoms or temporal formulas
+				if (f->oper () == aalta_formula::Not)
+					res = f;
+				else
+					res = aalta_formula (aalta_formula::Not, NULL, f).unique ();
+				break;
+		}
+		return res;
+	 }
+
+	 void Solver::add_constraint_clauses (aalta_formula* f)
+	 {
+		switch (f->oper ())
+ 		{
+ 			case aalta_formula::True:
+ 			case aalta_formula::False:
+ 				cout << "Solver.cpp::add_constraint_clauses: Error reach here!\n";
+ 				exit (0);
+ 			case aalta_formula::Not:
+ 				build_formula_map (f);
+ 				//add_clauses_for (f->r_af ());
+ 				mark_clauses_added (f);
+ 				break;
+ 			case aalta_formula::Next:
+ 			case aalta_formula::Until:
+ 			case aalta_formula::Release:
+				cout << "Solver.cpp::add_constraint_clauses: Error reach here!\n";
+ 				exit (0);
+ 			case aalta_formula::And:
+				build_formula_map (f);
+				add_equivalence (SAT_id (f), SAT_id (f->l_af ()), SAT_id (f->r_af ()));
+				dout << "adding equivalence " << SAT_id (f) << " <-> " << SAT_id (f->l_af ()) << " & " << SAT_id (f->r_af ()) << endl;
+				add_constraint_clauses (f->l_af ());
+ 				add_constraint_clauses (f->r_af ());
+ 				mark_clauses_added (f);
+ 				break;
+ 			case aalta_formula::Or:
+ 				build_formula_map (f);
+ 				add_equivalence (-SAT_id (f), -SAT_id (f->l_af ()), -SAT_id (f->r_af ()));
+ 				dout << "adding equivalence " << -SAT_id (f) << " <-> " << -SAT_id (f->l_af ()) << " & " << -SAT_id (f->r_af ()) << endl;
+				
+				add_constraint_clauses (f->l_af ());
+ 				add_constraint_clauses (f->r_af ());
+ 				mark_clauses_added (f);
+ 				break;
+ 			case aalta_formula::Undefined:
+ 			{
+ 				cout << "Solver.cpp::add_clauses_for: Error reach here!\n";
+ 				exit (0);
+ 			}
+ 			default: //atoms
+ 				build_formula_map (f);
+ 				mark_clauses_added (f);
+	 			break;
+ 		}
+	 }
+
 	 //generate clauses of SAT solver
 	 void Solver::generate_clauses (aalta_formula* f)
 	 {
@@ -62,6 +173,7 @@
  		if (clauses_added (f))
  			return; 
  		int id, x_id;
+		aalta_formula* tmp1=NULL, *tmp2=NULL;
  		switch (f->oper ())
  		{
  			case aalta_formula::True:
@@ -86,7 +198,13 @@
  			//A U B = B \/ (A /\ !Tail /\ X (A U B))
  				build_X_map (f);
  				build_formula_map (f);
- 				id = ++max_used_id_;
+ 				//id = ++max_used_id_;
+				tmp1 = aalta_formula (aalta_formula::Next, NULL, f).unique();
+				tmp2 = aalta_formula (aalta_formula::Not, NULL, aalta_formula::TAIL()).unique ();
+				tmp1 = aalta_formula (aalta_formula::And, tmp2, tmp1).unique ();
+				if (!f->is_future ())
+					tmp1 = aalta_formula (aalta_formula::And, f->l_af(), tmp1).unique ();
+				id = tmp1->id();
  				add_equivalence (-SAT_id (f), -SAT_id (f->r_af ()), -id);
  				dout << "adding equivalence " << -SAT_id (f) << " <-> " << -SAT_id (f->r_af ()) << " & " << -id << endl;
  				
@@ -111,7 +229,14 @@
  			//A R B = B /\ (A \/ Tail \/ X (A R B))
  				build_X_map (f);
  				build_formula_map (f);
- 				id = ++max_used_id_;
+ 				//id = ++max_used_id_;
+				tmp1 = aalta_formula (aalta_formula::Next, NULL, f).unique();
+				//tmp2 = aalta_formula (aalta_formula::Not, NULL, aalta_formula::TAIL()).unique ();
+				tmp1 = aalta_formula (aalta_formula::Or, aalta_formula::TAIL(), tmp1).unique ();
+				if (!f->is_globally ())
+					tmp1 = aalta_formula (aalta_formula::Or, f->l_af(), tmp1).unique ();
+				id = tmp1->id();
+				//id = aalta_formula (aalta_formula::Next, NULL, f).unique()->id();
  				add_equivalence (SAT_id (f), SAT_id (f->r_af ()), id);
  				dout << "adding equivalence " << SAT_id (f) << " <-> " << SAT_id (f->r_af ()) << " & " << id << endl;
  				
