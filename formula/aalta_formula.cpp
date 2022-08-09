@@ -3452,6 +3452,24 @@ aalta_formula::af_prt_set aalta_formula::to_or_set ()
 	return res;
 }
 
+void
+aalta_formula::to_or_set (af_prt_set & result)
+{
+	if(oper() == False)
+  {
+    return;
+  }
+  if(oper() != Or)
+  {
+    result.insert(this);
+  }
+  else
+  {
+    _left->to_set(result);
+    _right->to_set(result);
+  }
+}
+
 void 
 aalta_formula::to_set (af_prt_set & result)
 {
