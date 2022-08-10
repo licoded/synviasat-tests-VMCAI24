@@ -16,29 +16,48 @@ void usage()
 	cout << endl;
 }
 
-void test()
+void test1()
 {
-	string s0 = "(!(p7)) & (1 U (p6))";
-	string s1 = "1 U (p6)";
-	string input_f = "(" + s1 + ") & (p7) & (!(p6))";
+	cout << "test case 1" << endl;
+	string s0 = string("F(p0) & ((G(p1)) | (F(G(p1))))");
+	string input_f = "(" + s0 + ") & (p1) & (!(p0))";
 
-	aalta_formula *f, *c;
+	aalta_formula *f;
 	f = aalta_formula::TAIL();
 	aalta_formula::TRUE();
 	aalta_formula::FALSE();
+	cout << "src input formula: " << input_f << endl;
 	f = aalta_formula(input_f.c_str(), true).unique();
 	f = f->nnf();
 	f = f->add_tail();
 	f = f->remove_wnext();
 	f = f->simplify();
 	f = f->split_next();
-	cout<<f->to_string()<<endl;
+	cout << "construct checker:" << f->to_string() << endl;
 
 	CARChecker checker(f, false, true);
-	checker.add_constraint(aalta_formula(s1.c_str(), true).unique());
-	cout<<(aalta_formula(s1.c_str(), true).unique())->to_string()<<endl;
-	checker.add_constraint(aalta_formula(s0.c_str(), true).unique());
-	cout<<(aalta_formula(s0.c_str(), true).unique())->to_string()<<endl;
+	checker.add_constraint(aalta_formula(s0.c_str(), true).unique(), true, true);
+	bool res = checker.check();
+	cout << (res ? "sat" : "unsat") << endl;
+	if (res)
+		checker.print_evidence();
+}
+
+void test2()
+{
+	cout << "\ntest case 2" << endl;
+	aalta_formula *f;
+	f = aalta_formula::TAIL();
+	f = aalta_formula("a U b", true).unique();
+	f = f->nnf();
+	f = f->add_tail();
+	f = f->remove_wnext();
+	f = f->simplify();
+	f = f->split_next();
+	cout << "construct checker:" << f->to_string() << endl;
+
+	CARChecker checker(f, false, true);
+	checker.add_constraint(aalta_formula("a U b", true).unique(), true, true);
 	bool res = checker.check();
 	cout << (res ? "sat" : "unsat") << endl;
 	if (res)
@@ -47,7 +66,8 @@ void test()
 
 int main(int argc, char **argv)
 {
-	// test();
+	// test1();
+	// test2();
 	// return 0;
 	// ltlf_sat(argc, argv);
 	// return 0;

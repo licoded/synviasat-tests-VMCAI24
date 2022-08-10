@@ -21,7 +21,7 @@ int Syn_Frame::call_sat;
 
 bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
 {
-    cout << src_formula->to_string() << endl;
+    //cout << src_formula->to_string() << endl;
     //  partition atoms and save index values respectively
     PartitionAtoms(src_formula, env_var);
 
@@ -43,7 +43,7 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
     while (true)
     {
         Syn_Frame *cur_frame = searcher.back();
-        cur_frame->PrintInfo();
+        //cur_frame->PrintInfo();
         Status peek = cur_frame->CheckRealizability();
         switch (peek)
         {
@@ -216,7 +216,7 @@ void Syn_Frame::SetTravelDirection(aalta_formula *Y, aalta_formula *X)
     if (current_Y_ == NULL)
         current_Y_ = Y;
     current_X_ = X;
-    cout << "set: Y = " << Y->to_string() << ", X = " << X->to_string() << endl;
+    //cout << "set: Y = " << Y->to_string() << ", X = " << X->to_string() << endl;
 }
 
 Status Expand(list<Syn_Frame *> &searcher)
@@ -231,18 +231,18 @@ Status Expand(list<Syn_Frame *> &searcher)
         f = aalta_formula(aalta_formula::And, tp_frame->GetFormulaPointer(), edge_constraint).unique();
     else
         f = tp_frame->GetFormulaPointer();
-    cout << f->to_string() << endl;
+    //cout << f->to_string() << endl;
     f = f->add_tail();
     f = f->remove_wnext();
     f = f->simplify();
     f = f->split_next();
-    cout<<"Construct Checker: "<<f->to_string()<<endl;
+    //cout<<"Construct Checker: "<<f->to_string()<<endl;
     CARChecker checker(f, false, true);
     BlockState(checker, searcher);
     if (checker.check())
     { // sat
         vector<pair<aalta_formula *, aalta_formula *>> *tr = checker.get_model_for_synthesis();
-        checker.print_evidence();
+        //checker.print_evidence();
         tp_frame->SetTraceBeginning();
         for (int i = 0; i < ((tr->size()) - 1); ++i)
         {
@@ -503,7 +503,7 @@ void BlockState(CARChecker &checker, list<Syn_Frame *> &prefix)
         ((*it)->GetFormulaPointer())->to_or_set(to_block);
     for (auto it = to_block.begin(); it != to_block.end(); ++it)
     {
-        cout<<"Add Constraint State: " << (*it)->to_string() << endl;
-        checker.add_constraint((*it),true,true);
+        //cout<<"Add Constraint State: " << (*it)->to_string() << endl;
+        checker.add_constraint((*it));
     }
 }

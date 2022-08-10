@@ -65,7 +65,10 @@
 
 	 aalta_formula* Solver::create_for_block (aalta_formula* c, bool ltlf)
 	 {
-		aalta_formula* res = aalta_formula (aalta_formula::Next, NULL, c).unique ();
+		//aalta_formula* res = c->simplify ();
+		aalta_formula* res = c->add_tail ();
+		res = res->simplify ();
+		res = aalta_formula (aalta_formula::Next, NULL, res).unique ();
 		res = res->split_next ();
 		res = add_neg_to_var (res);
 		if (ltlf)
@@ -173,7 +176,7 @@
  		if (clauses_added (f))
  			return; 
  		int id, x_id;
-		aalta_formula* tmp1=NULL, *tmp2=NULL;
+		aalta_formula* tmp1=NULL, *tmp2=NULL, *tmp=NULL;
  		switch (f->oper ())
  		{
  			case aalta_formula::True:
@@ -195,20 +198,30 @@
  				mark_clauses_added (f);
  				break;
  			case aalta_formula::Until:
- 			//A U B = B \/ (A /\ !Tail /\ X (A U B))
+ 			//A U B = B \/ (A /\ X (A U B))
  				build_X_map (f);
  				build_formula_map (f);
  				//id = ++max_used_id_;
 				tmp1 = aalta_formula (aalta_formula::Next, NULL, f).unique();
-				tmp2 = aalta_formula (aalta_formula::Not, NULL, aalta_formula::TAIL()).unique ();
-				tmp1 = aalta_formula (aalta_formula::And, tmp2, tmp1).unique ();
-				if (!f->is_future ())
+				//tmp2 = aalta_formula (aalta_formula::Not, NULL, aalta_formula::TAIL()).unique ();
+				//tmp1 = aalta_formula (aalta_formula::And, tmp2, tmp1).unique ();
+				//if (!(f->l_af()->oper() == aalta_formula::Not && f->l_af()->r_af () == aalta_formula::TAIL()))
 					tmp1 = aalta_formula (aalta_formula::And, f->l_af(), tmp1).unique ();
 				id = tmp1->id();
+				set_max_used_id (id);
  				add_equivalence (-SAT_id (f), -SAT_id (f->r_af ()), -id);
  				dout << "adding equivalence " << -SAT_id (f) << " <-> " << -SAT_id (f->r_af ()) << " & " << -id << endl;
- 				
- 				if (!f->is_future ())
+ 				add_equivalence (id, SAT_id (f->l_af ()), SAT_id_of_next (f));
+ 				dout << "adding equivalence " << id << " <-> " << SAT_id (f->l_af ()) << " & " << SAT_id_of_next (f) << endl;
+				//special case Xc => X(a U c)
+				tmp = aalta_formula (aalta_formula::Next, NULL, f->r_af()).unique (); 
+				add_clause (-f->r_af()->id(), f->id());
+				add_clause (-tmp->id(), SAT_id_of_next (f));
+
+				add_clauses_for (f->l_af ());
+				add_clauses_for (f->r_af ());
+				/*
+ 				if (!(f->l_af()->oper() == aalta_formula::Not && f->l_af()->r_af () == aalta_formula::TAIL()))
  				{
  					add_equivalence (id, SAT_id (f->l_af ()), -tail_, SAT_id_of_next (f));
  					dout << "adding equivalence " << id << " <-> " << -SAT_id (f->l_af ()) << " & " << -tail_ << " & " << SAT_id_of_next (f) << endl;
@@ -220,27 +233,33 @@
  				{
  					add_equivalence (id, -tail_, SAT_id_of_next (f));
  					dout << "adding equivalence " << id << " <-> " << -tail_ << " & " << SAT_id_of_next (f) << endl;
-
  					add_clauses_for (f->r_af ());
  				}
+				*/
  				mark_clauses_added (f);
  				break;
  			case aalta_formula::Release:
- 			//A R B = B /\ (A \/ Tail \/ X (A R B))
+ 			//A R B = B /\ (A \/ X (A R B))
  				build_X_map (f);
  				build_formula_map (f);
  				//id = ++max_used_id_;
 				tmp1 = aalta_formula (aalta_formula::Next, NULL, f).unique();
 				//tmp2 = aalta_formula (aalta_formula::Not, NULL, aalta_formula::TAIL()).unique ();
-				tmp1 = aalta_formula (aalta_formula::Or, aalta_formula::TAIL(), tmp1).unique ();
-				if (!f->is_globally ())
+				//tmp1 = aalta_formula (aalta_formula::Or, aalta_formula::TAIL(), tmp1).unique ();
+				//if (!(f->l_af() == aalta_formula::TAIL()))
 					tmp1 = aalta_formula (aalta_formula::Or, f->l_af(), tmp1).unique ();
 				id = tmp1->id();
+				set_max_used_id (id);
 				//id = aalta_formula (aalta_formula::Next, NULL, f).unique()->id();
  				add_equivalence (SAT_id (f), SAT_id (f->r_af ()), id);
  				dout << "adding equivalence " << SAT_id (f) << " <-> " << SAT_id (f->r_af ()) << " & " << id << endl;
- 				
- 				if (!f->is_globally ())
+ 				add_equivalence (-id, -SAT_id (f->l_af ()), -SAT_id_of_next (f));
+ 				dout << "adding equivalence " << -id << " <-> " << -SAT_id (f->l_af ()) << " & " << -SAT_id_of_next (f) << endl;
+
+				add_clauses_for (f->l_af ());
+				add_clauses_for (f->r_af ());
+				/*
+ 				if (!(f->l_af() == aalta_formula::TAIL()))
  				{
  					add_equivalence (-id, -SAT_id (f->l_af ()), -tail_, -SAT_id_of_next (f));
  					dout << "adding equivalence " << -id << " <-> " << -SAT_id (f->l_af ()) << " & " << -tail_ << " & " << -SAT_id_of_next (f) << endl;
@@ -252,9 +271,9 @@
  				{				
  					add_equivalence (-id, -tail_, -SAT_id_of_next (f));
  					dout << "adding equivalence " << -id << " <-> " << -tail_ << " & " << -SAT_id_of_next (f) << endl;
-
  					add_clauses_for (f->r_af ());
  				}
+				*/
  				mark_clauses_added (f);
  				break;
  			
@@ -561,8 +580,12 @@
  		assert (f->oper () == aalta_formula::Until || f->oper () == aalta_formula::Release);
  		if (X_map_.find (f->id ()) != X_map_.end ())
  			return;
- 		X_map_.insert (std::pair<int, int> (f->id (), ++max_used_id_));
- 		X_reverse_map_.insert (std::pair<int, aalta_formula*> (max_used_id_, f));
+ 		aalta_formula* next = aalta_formula (aalta_formula::Next, NULL, f).unique ();
+		set_max_used_id (next->id());
+		X_map_.insert (std::pair<int, int> (f->id (), next->id()));
+ 		X_reverse_map_.insert (std::pair<int, aalta_formula*> (next->id(), f));
+ 		//X_map_.insert (std::pair<int, int> (f->id (), ++max_used_id_));
+ 		//X_reverse_map_.insert (std::pair<int, aalta_formula*> (max_used_id_, f));
  	}
 	
 	int Solver::SAT_id_of_next (aalta_formula *f)

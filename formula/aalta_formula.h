@@ -150,6 +150,7 @@ private:
   //////////////////////////////////////////////////
 
 public:
+  static void print_formula_id ();
 
   /* 操作符类型 */
   enum opkind
