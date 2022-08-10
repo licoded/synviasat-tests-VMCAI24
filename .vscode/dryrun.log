@@ -4,7 +4,6 @@ ltlparser/grammar/ltllexer.l
 flex ltlparser/grammar/ltllexer.l
 ltlparser/grammar/ltlparser.y
 bison ltlparser/grammar/ltlparser.y
+g++ -I./  -I./minisat/  -D __STDC_LIMIT_MACROS -D __STDC_FORMAT_MACROS -fpermissive -O3 main.cpp ltlfchecker.cpp carchecker.cpp evidence.cpp minisat/core/Solver.cc aaltasolver.cpp solver.cpp carsolver.cpp  formula/aalta_formula.cpp formula/olg_formula.cpp formula/olg_item.cpp ltlparser/ltl_formula.c ltlparser/ltllexer.c ltlparser/ltlparser.c ltlparser/trans.c  util/utility.cpp utility.cpp synthesis.cpp formula_in_bdd.cpp generalizer.cpp deps/CUDD-install/lib/libcudd.a  -lm -lz -o ltlfsyn
 make: Leaving directory '/home/coriolis/SynViaSat'
  
-make: *** No rule to make target 'deps/CUDD-install/lib/libcudd.a', needed by 'release'.
-
