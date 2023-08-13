@@ -724,8 +724,8 @@ aalta_formula::init ()
       names.push_back ("!");
       names.push_back ("|");
       names.push_back ("&");
-      names.push_back ("X");
-      names.push_back ("N"); //weak Next, for LTLf
+      names.push_back ("X[!]");
+      names.push_back ("X"); //weak Next, for LTLf
       names.push_back ("U");
       names.push_back ("R");
       names.push_back ("Undefined");
