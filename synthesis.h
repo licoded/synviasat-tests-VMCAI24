@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <list>
 #include <map>
+#include <sys/time.h>
 
 #include "formula_in_bdd.h"
 #include "deps/CUDD-install/include/cudd.h"
@@ -29,7 +30,7 @@ typedef enum
 } Signal;
 
 // main entry
-bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var);
+bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, const struct timeval &prog_start, bool verbose = false);
 
 class Syn_Frame
 {
@@ -50,11 +51,12 @@ public:
     // for blocking failure state
     static map<ull, ull> bddP_to_afP;
 
-    static int call_sat;
+    static int sat_call_cnt;
+    static long double average_sat_time;
 
     Syn_Frame(aalta_formula *);
     ~Syn_Frame() { delete state_in_bdd_; }
-    Status CheckRealizability();
+    Status CheckRealizability(bool verbose = false);
     inline DdNode *GetBddPointer()
     {
         return state_in_bdd_->GetBddPointer();
@@ -66,7 +68,7 @@ public:
 
     // tell the frame the result of current choice
     // and the frame performs some operations
-    void process_signal(Signal signal);
+    void process_signal(Signal signal, bool verbose = false);
 
     // whther the current frame is
     // the beginning of a sat trace
@@ -84,6 +86,11 @@ public:
     aalta_formula *GetEdgeConstraint();
 
     void SetTravelDirection(aalta_formula *Y, aalta_formula *X);
+    inline void ResetTravelDirection()
+    {
+        current_Y_ = NULL;
+        current_X_ = NULL;
+    }
 
     inline void SetTraceBeginning() { is_trace_beginning_ = true; }
 
@@ -108,7 +115,7 @@ private:
     bool is_trace_beginning_;
 };
 
-Status Expand(list<Syn_Frame *> &searcher);
+Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, bool verbose = false);
 
 aalta_formula *FormulaProgression(aalta_formula *predecessor, unordered_set<int> &edge);
 
@@ -130,7 +137,7 @@ inline bool EdgeConstraintIsUnsat(aalta_formula *edge)
 
 // // return edgecons && G!(PREFIX) && G!(failure)
 // aalta_formula *ConstructBlockFormula(list<Syn_Frame *> &prefix, aalta_formula *edge_cons);
-void BlockState(CARChecker &checker, list<Syn_Frame *> &prefix);
+void BlockState(CARChecker &checker, list<Syn_Frame *> &prefix, bool verbose = false);
 
 inline aalta_formula *global_not(aalta_formula *phi)
 {
@@ -138,10 +145,8 @@ inline aalta_formula *global_not(aalta_formula *phi)
     return aalta_formula(aalta_formula::Release, aalta_formula::FALSE(), not_phi).unique();
 }
 
-// inline aalta_formula *not_next(aalta_formula *phi)
-// {
-//     aalta_formula *next_phi = aalta_formula(aalta_formula::Next, NULL, phi);
-//     return aalta_formula(aalta_formula::Release, aalta_formula::FALSE(), not_phi).unique();
-// }
+bool IsAcc(aalta_formula *predecessor, unordered_set<int> &tmp_edge);
+
+bool RepeatState(list<Syn_Frame *> &prefix, DdNode *state);
 
 #endif

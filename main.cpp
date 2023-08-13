@@ -64,10 +64,27 @@ void test2()
 		checker.print_evidence();
 }
 
+void test3()
+{
+	aalta_formula *f;
+	f = aalta_formula::TAIL();
+	f = aalta_formula("a U b", true).unique();
+	f = f->nnf();
+	f = f->add_tail();
+	f = f->remove_wnext();
+	f = f->simplify();
+	f = f->split_next();
+
+	CARChecker checker(f, false, true);
+	bool res = checker.check();
+	cout << (res ? "sat" : "unsat") << endl;
+	if (res)
+		checker.print_evidence();
+}
+
 int main(int argc, char **argv)
 {
-	// test1();
-	// test2();
+	// test3();
 	// return 0;
 	// ltlf_sat(argc, argv);
 	// return 0;
@@ -123,7 +140,8 @@ int main(int argc, char **argv)
 	af = af->unique();
 
 	// perform synthesis
-	bool result = is_realizable(af, env_var);
+	// bool result = is_realizable(af, env_var, t1);
+	bool result = is_realizable(af, env_var, t1, false);
 	if (result)
 		cout << "Realizable" << endl;
 	else
@@ -135,6 +153,8 @@ int main(int argc, char **argv)
 	timeuse = (t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec;
 	cout << "CPU time: " << 1000 * double(endTime - startTime) / CLOCKS_PER_SEC << " ms" << endl;
 	cout << "total time: " << timeuse / 1000.0 << " ms" << endl;
+	cout << "sat cnt: " << Syn_Frame::sat_call_cnt << endl;
+	cout << "average sat time: " << Syn_Frame::average_sat_time << " ms" << endl;
 
 	return 0;
 }

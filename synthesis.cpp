@@ -1,6 +1,7 @@
 #include <list>
 #include <cassert>
 #include <map>
+#include <sys/time.h>
 
 #include "synthesis.h"
 #include "carchecker.h"
@@ -17,15 +18,27 @@ set<int> Syn_Frame::var_Y;
 unordered_set<ull> Syn_Frame::winning_state;
 unordered_set<ull> Syn_Frame::failure_state;
 map<ull, ull> Syn_Frame::bddP_to_afP;
-int Syn_Frame::call_sat;
+int Syn_Frame::sat_call_cnt;
+long double Syn_Frame::average_sat_time;
 
-bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
+bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, const struct timeval &prog_start, bool verbose)
 {
-    //cout << src_formula->to_string() << endl;
-    //  partition atoms and save index values respectively
+    //   partition atoms and save index values respectively
     PartitionAtoms(src_formula, env_var);
+    if (verbose)
+    {
+        cout << "initial state: " << src_formula->to_string() << endl;
+        cout << "Y variables:";
+        for (auto item : Syn_Frame::var_Y)
+            cout << ' ' << aalta_formula(item, NULL, NULL).to_string();
+        cout << "\nX variables:";
+        for (auto item : Syn_Frame::var_X)
+            cout << ' ' << aalta_formula(item, NULL, NULL).to_string();
+        cout << endl;
+    }
 
-    Syn_Frame::call_sat = 0;
+    Syn_Frame::sat_call_cnt = 0;
+    Syn_Frame::average_sat_time = 0;
 
     // number of variables
     Syn_Frame::num_varX_ = Syn_Frame::var_X.size();
@@ -40,35 +53,73 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
     list<Syn_Frame *> searcher;
     Syn_Frame *init = new Syn_Frame(src_formula); // xnf(src_formula)
     searcher.push_back(init);
+    if (verbose)
+        cout << "Start searching......\n"
+             << endl;
     while (true)
     {
         Syn_Frame *cur_frame = searcher.back();
-        //cur_frame->PrintInfo();
-        Status peek = cur_frame->CheckRealizability();
+        if (verbose)
+        {
+            cout << "\n----------new epi----------" << endl
+                 << "the current size of the searching stack: " << searcher.size() << endl
+                 << "information about top item of the stack:" << endl;
+            cur_frame->PrintInfo();
+            cout << endl;
+        }
+
+        Status peek = cur_frame->CheckRealizability(verbose);
+        if (verbose)
+        {
+            cout << "current realizability of the top item: ";
+            if (peek == Unknown)
+                cout << "Unknown" << endl;
+            else if (peek == Realizable)
+                cout << "Realizable" << endl;
+            else
+                cout << "Unealizable" << endl;
+        }
+
         switch (peek)
         {
         case Realizable:
         {
+            if (verbose)
+                cout << "Top item is Realizable";
             if (searcher.size() == 1)
             {
+                if (verbose)
+                    cout << ", and size of stack is 1." << endl
+                         << "finish searching, synthesis result is Realizable" << endl;
                 delete cur_frame;
                 FormulaInBdd::QuitBdd4LTLf();
                 return true;
             }
+            if (verbose)
+                cout << ", then pop the top item." << endl
+                     << "insert to winning state: " << (cur_frame->GetFormulaPointer())->to_string() << endl;
             Syn_Frame::winning_state.insert(ull(cur_frame->GetBddPointer()));
             delete cur_frame;
             searcher.pop_back();
-            (searcher.back())->process_signal(To_winning_state);
+            (searcher.back())->process_signal(To_winning_state, verbose);
             break;
         }
         case Unrealizable:
         {
+            if (verbose)
+                cout << "Top item is Unrealizable";
             if (searcher.size() == 1)
             {
+                if (verbose)
+                    cout << ", and size of stack is 1." << endl
+                         << "finish searching, synthesis result is Unrealizable" << endl;
                 delete cur_frame;
                 FormulaInBdd::QuitBdd4LTLf();
                 return false;
             }
+            if (verbose)
+                cout << ", then pop the top item." << endl
+                     << "insert to failure state: " << (cur_frame->GetFormulaPointer())->to_string() << endl;
             Syn_Frame::failure_state.insert(ull(cur_frame->GetBddPointer()));
             Syn_Frame::bddP_to_afP[ull(cur_frame->GetBddPointer())] = ull(cur_frame->GetFormulaPointer());
             delete cur_frame;    //////////////
@@ -76,16 +127,25 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
 
             // encounter Unrealizable
             // backtrack the beginning of the sat trace
+            if (verbose)
+            {
+                cout << "encounter failure state, backtrack to the beginning of the sat trace" << endl;
+            }
             while (true)
             {
                 auto tmp = searcher.back();
                 if (tmp->IsTraceBeginning())
                 {
-                    tmp->process_signal(To_failure_state);
+                    if (verbose)
+                        cout << "arrive at beginning, stop popping" << endl;
+                    // tmp->process_signal(To_failure_state, verbose);
+                    tmp->ResetTravelDirection();
                     break;
                 }
                 else
                 {
+                    if (verbose)
+                        cout << "pop state: " << (tmp->GetFormulaPointer())->to_string() << endl;
                     delete tmp;
                     searcher.pop_back();
                 }
@@ -94,7 +154,9 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var)
         }
         case Unknown:
         {
-            Status res = Expand(searcher);
+            if (verbose)
+                cout << "Top item is Unknown, expand the search stack" << endl;
+            Status res = Expand(searcher, prog_start, verbose);
             if (res != Unknown)
             { //
                 delete cur_frame;
@@ -117,20 +179,36 @@ Syn_Frame::Syn_Frame(aalta_formula *af)
     is_trace_beginning_ = false;
 }
 
-Status Syn_Frame::CheckRealizability()
+Status Syn_Frame::CheckRealizability(bool verbose)
 {
     if (Syn_Frame::winning_state.find(ull(state_in_bdd_->GetBddPointer())) != Syn_Frame::winning_state.end())
+    {
+        if (verbose)
+            cout << "known winning state" << endl;
         return Realizable;
+    }
     if (Syn_Frame::failure_state.find(ull(state_in_bdd_->GetBddPointer())) != Syn_Frame::failure_state.end())
+    {
+        if (verbose)
+            cout << "known failure state" << endl;
         return Unrealizable;
+    }
     if (EdgeConstraintIsUnsat(Y_constraint_))
+    {
+        if (verbose)
+            cout << "all value of Y-variables has been traveled" << endl;
         return Unrealizable;
+    }
     if (EdgeConstraintIsUnsat(X_constraint_))
+    {
+        if (verbose)
+            cout << "for a Y, all value of X-variables has been traveled" << endl;
         return Realizable;
+    }
     return Unknown;
 }
 
-void Syn_Frame::process_signal(Signal signal)
+void Syn_Frame::process_signal(Signal signal, bool verbose)
 {
     switch (signal)
     {
@@ -201,14 +279,14 @@ aalta_formula *Syn_Frame::GetEdgeConstraint()
 
 void Syn_Frame::PrintInfo()
 {
-    cout << "formula: " << (state_in_bdd_->GetFormulaPointer())->to_string() << endl;
+    cout << "state formula: " << (state_in_bdd_->GetFormulaPointer())->to_string() << endl;
     cout << "Y constraint: " << Y_constraint_->to_string() << endl;
     cout << "X constraint: " << X_constraint_->to_string() << endl;
     if (current_Y_ != NULL)
         cout << "current Y: " << current_Y_->to_string() << endl;
     if (current_X_ != NULL)
         cout << "current X: " << current_X_->to_string() << endl;
-    cout << (is_trace_beginning_ ? "is " : "is not ") << "start point" << endl;
+    cout << (is_trace_beginning_ ? "is " : "is not ") << "a starting point" << endl;
 }
 
 void Syn_Frame::SetTravelDirection(aalta_formula *Y, aalta_formula *X)
@@ -216,33 +294,61 @@ void Syn_Frame::SetTravelDirection(aalta_formula *Y, aalta_formula *X)
     if (current_Y_ == NULL)
         current_Y_ = Y;
     current_X_ = X;
-    //cout << "set: Y = " << Y->to_string() << ", X = " << X->to_string() << endl;
 }
 
-Status Expand(list<Syn_Frame *> &searcher)
+Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, bool verbose)
 {
-    // cout << (++(Syn_Frame::call_sat)) << "time(s) sat call" << endl
-    //      << "call before stack size: " << searcher.size() << endl;
     Syn_Frame *tp_frame = searcher.back();
     aalta_formula *edge_constraint = tp_frame->GetEdgeConstraint();
+    if (verbose)
+    {
+        cout << "expand the stack by ltlf-sat" << endl
+             << "state formula: " << (tp_frame->GetFormulaPointer())->to_string() << endl
+             << "constraint of edge: " << edge_constraint->to_string() << endl;
+    }
     // aalta_formula *block_formula = ConstructBlockFormula(searcher, edge_constraint);
     aalta_formula *f;
-    if(edge_constraint->oper()!=aalta_formula::True)
+    if (edge_constraint->oper() != aalta_formula::True)
         f = aalta_formula(aalta_formula::And, tp_frame->GetFormulaPointer(), edge_constraint).unique();
     else
         f = tp_frame->GetFormulaPointer();
-    //cout << f->to_string() << endl;
+    // cout << f->to_string() << endl;
     f = f->add_tail();
     f = f->remove_wnext();
     f = f->simplify();
     f = f->split_next();
-    //cout<<"Construct Checker: "<<f->to_string()<<endl;
+    if (verbose)
+        cout << "Construct Checker: " << f->to_string() << endl;
+    Syn_Frame::sat_call_cnt += 1;
+    struct timeval t1, t2;
+    long double timeuse;
+    // cout << "begin sat solving" << endl;
+    gettimeofday(&t1, NULL);
     CARChecker checker(f, false, true);
-    BlockState(checker, searcher);
-    if (checker.check())
+    BlockState(checker, searcher, verbose);
+    bool check_res = checker.check();
+    gettimeofday(&t2, NULL);
+    timeuse = (t2.tv_sec - t1.tv_sec) * 1000.0 + (t2.tv_usec - t1.tv_usec) / 1000.0;
+    Syn_Frame::average_sat_time = Syn_Frame::average_sat_time + (timeuse - Syn_Frame::average_sat_time) / Syn_Frame::sat_call_cnt;
+    long double time_to_start = (t2.tv_sec - prog_start.tv_sec) * 1000.0 + (t2.tv_usec - prog_start.tv_usec) / 1000.0;
+    if ((time_to_start - 300000.0) > 0)
+    {
+        cout << "Runtimeout" << endl;
+        cout << "failure state cnt: " << (Syn_Frame::failure_state.size()) - 1 << endl;
+        cout << "sat cnt: " << Syn_Frame::sat_call_cnt << endl;
+        cout << "average sat time: " << Syn_Frame::average_sat_time << " ms" << endl;
+        exit(0);
+    }
+    if (check_res)
     { // sat
+        if (verbose)
+        {
+            cout << "SAT checking result: sat" << endl
+                 << "satisfiable trace:" << endl;
+            checker.print_evidence();
+            cout << "push items to stack:" << endl;
+        }
         vector<pair<aalta_formula *, aalta_formula *>> *tr = checker.get_model_for_synthesis();
-        //checker.print_evidence();
         tp_frame->SetTraceBeginning();
         for (int i = 0; i < ((tr->size()) - 1); ++i)
         {
@@ -250,65 +356,137 @@ Status Expand(list<Syn_Frame *> &searcher)
             aalta_formula *X_edge = ((*tr)[i]).second;
             (searcher.back())->SetTravelDirection(Y_edge, X_edge);
             aalta_formula *predecessor = (searcher.back())->GetFormulaPointer();
+            { // check whether accepting in advance
+                unordered_set<int> tmp_edge;
+                X_edge->to_set(tmp_edge);
+                Y_edge->to_set(tmp_edge);
+                if (IsAcc(predecessor, tmp_edge))
+                {
+                    cout << "accepting in advance, total is " << (tr->size()) << ", acc at " << i + 1 << endl;
+                }
+            }
             unordered_set<int> edge;
             Y_edge->to_set(edge);
-            if (CheckCompleteY(predecessor, edge) != Tt)
-            {
-                (searcher.back())->process_signal(Incomplete_Y);
-                return Unknown;
-            }
+            // if (CheckCompleteY(predecessor, edge) != Tt)
+            // {
+            //     if (verbose)
+            //         cout << "Incomplete Y" << endl;
+            //     (searcher.back())->process_signal(Incomplete_Y, verbose);
+            //     return Unknown;
+            // }
             X_edge->to_set(edge);
             aalta_formula *successor = FormulaProgression(predecessor, edge);
             // successor = xnf(successor);
             Syn_Frame *frame = new Syn_Frame(successor);
+            // { // check same state
+            //     if (RepeatState(searcher, frame->GetBddPointer()))
+            //     {
+            //         cout << "State that repeats" << endl;
+            //     }
+            // }
+            if (verbose)
+                cout << "\tby edge: Y=" << Y_edge->to_string() << " X=" << X_edge->to_string() << endl
+                     << "\tto state: " << successor->to_string() << endl;
             searcher.push_back(frame);
         }
         // the last position is the accepting edge
+        if (verbose)
+            cout << "last position of sat trace is accepting edge" << endl;
         aalta_formula *Y_edge = (tr->back()).first;
         aalta_formula *end_state = (searcher.back())->GetFormulaPointer();
         unordered_set<int> edge;
         Y_edge->to_set(edge); // edge only with Y-literals here
         if (BaseWinningAtY(end_state, edge))
         {
+            if (verbose)
+            {
+                cout << "for acc edge, Y\\models state, so top item is base-winning: " << end_state->to_string() << endl;
+            }
             if (searcher.size() == 1)
             {
+                if (verbose)
+                    cout << "size of stack is 1." << endl
+                         << "finish searching, synthesis result is Realizable" << endl;
                 return Realizable;
             }
             else
             {
+                if (verbose)
+                    cout << "pop the top item." << endl
+                         << "insert to winning state: " << ((searcher.back())->GetFormulaPointer())->to_string() << endl;
                 Syn_Frame::winning_state.insert(ull((searcher.back())->GetBddPointer()));
                 delete searcher.back();
                 searcher.pop_back();
-                (searcher.back())->process_signal(To_winning_state);
+                (searcher.back())->process_signal(To_winning_state, verbose);
             }
         }
         else
         {
             aalta_formula *X_edge = (tr->back()).second;
             (searcher.back())->SetTravelDirection(Y_edge, X_edge);
-            (searcher.back())->process_signal(Accepting_edge);
+            if (verbose)
+                cout << "accepting edge: Y=" << Y_edge->to_string() << " X=" << X_edge->to_string() << endl;
+            (searcher.back())->process_signal(Accepting_edge, verbose);
         }
     }
     else
     { // unsat
+        if (verbose)
+        {
+            cout << "SAT checking result: unsat" << endl;
+        }
         if (tp_frame->IsNotTryingY())
         { // current frame is unrealizable immediately
+            if (verbose)
+            {
+                cout << "isn't traveling some concrete value of Y-variables, " << endl
+                     << "so the top item is unrealizable immediately" << endl;
+            }
             if (searcher.size() == 1)
             {
+                if (verbose)
+                    cout << "size of stack is 1." << endl
+                         << "finish searching, synthesis result is Unrealizable" << endl;
                 return Unrealizable;
             }
             else
             {
+                if (verbose)
+                    cout << "pop the top item." << endl
+                         << "insert to failure state: " << ((searcher.back())->GetFormulaPointer())->to_string() << endl;
                 auto bdd_ptr = (searcher.back())->GetBddPointer();
                 Syn_Frame::failure_state.insert(ull(bdd_ptr));
                 Syn_Frame::bddP_to_afP[ull(bdd_ptr)] = ull((searcher.back())->GetFormulaPointer());
-                delete searcher.back();
+                delete (searcher.back());
                 searcher.pop_back();
-                (searcher.back())->process_signal(To_failure_state);
+                //(searcher.back())->process_signal(To_failure_state, verbose);
+                while (true)
+                {
+                    auto tmp = searcher.back();
+                    if (tmp->IsTraceBeginning())
+                    {
+                        if (verbose)
+                            cout << "arrive at beginning, stop popping" << endl;
+                        // tmp->process_signal(To_failure_state, verbose);
+                        tmp->ResetTravelDirection();
+                        break;
+                    }
+                    else
+                    {
+                        if (verbose)
+                            cout << "pop state: " << (tmp->GetFormulaPointer())->to_string() << endl;
+                        delete tmp;
+                        searcher.pop_back();
+                    }
+                }
             }
         }
         else
-            tp_frame->process_signal(NoWay);
+        {
+            if (verbose)
+                cout << "for current value of Y-variables, there is no more sat trace." << endl;
+            tp_frame->process_signal(NoWay, verbose);
+        }
     }
     // cout << "call after stack size: " << searcher.size() << endl;
     return Unknown;
@@ -491,7 +669,7 @@ aalta_formula *ConstructBlockFormula(list<Syn_Frame *> &prefix, aalta_formula *e
     return block_formula->simplify();
 }
 
-void BlockState(CARChecker &checker, list<Syn_Frame *> &prefix)
+void BlockState(CARChecker &checker, list<Syn_Frame *> &prefix, bool verbose)
 {
     aalta_formula::af_prt_set to_block;
     for (auto it = Syn_Frame::failure_state.begin(); it != Syn_Frame::failure_state.end(); ++it)
@@ -503,7 +681,38 @@ void BlockState(CARChecker &checker, list<Syn_Frame *> &prefix)
         ((*it)->GetFormulaPointer())->to_or_set(to_block);
     for (auto it = to_block.begin(); it != to_block.end(); ++it)
     {
-        //cout<<"Add Constraint State: " << (*it)->to_string() << endl;
+        if (verbose)
+            cout << "add constraint of blocking state: " << (*it)->to_string() << endl;
         checker.add_constraint((*it));
     }
+}
+
+bool IsAcc(aalta_formula *predecessor, unordered_set<int> &tmp_edge)
+{
+    if (predecessor == NULL)
+        return false;
+    int op = predecessor->oper();
+    if (op == aalta_formula::True || op == aalta_formula::WNext)
+        return true;
+    else if (op == aalta_formula::False || op == aalta_formula::Next)
+        return false;
+    else if (op == aalta_formula::And)
+        return BaseWinningAtY(predecessor->l_af(), tmp_edge) && BaseWinningAtY(predecessor->r_af(), tmp_edge);
+    else if (op == aalta_formula::Or)
+        return BaseWinningAtY(predecessor->l_af(), tmp_edge) || BaseWinningAtY(predecessor->r_af(), tmp_edge);
+    else if (op == aalta_formula::Not || op >= 11)
+    { // literal
+        int lit = (op >= 11) ? op : (-((predecessor->r_af())->oper()));
+        return tmp_edge.find(lit) != tmp_edge.end();
+    }
+    else if (op == aalta_formula::Until || op == aalta_formula::Release)
+        return BaseWinningAtY(predecessor->r_af(), tmp_edge);
+}
+
+bool RepeatState(list<Syn_Frame *> &prefix, DdNode *state)
+{
+    for (auto it = prefix.begin(); it != prefix.end(); ++it)
+        if (state == ((*it)->GetBddPointer()))
+            return true;
+    return false;
 }
