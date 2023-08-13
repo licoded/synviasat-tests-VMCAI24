@@ -31,5 +31,11 @@
 *.out
 *.app
 
+# for test cases and scripts
+examples
+
+# bins
+ltlfsyn*
+
 # tmp cnf
 cnf.dimacs*
