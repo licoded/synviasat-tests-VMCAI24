@@ -205,6 +205,8 @@ public:
   bool release_free ()const;
   aalta_formula *clone ()const;
   std::string to_string ()const;
+  std::string to_set_string();
+  std::string to_literal_set_string ();
   std::string to_RPN ()const;
 
   aalta_formula *unique ();
