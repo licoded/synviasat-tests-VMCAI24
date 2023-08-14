@@ -343,8 +343,7 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
     { // sat
         if (verbose)
         {
-            cout << "SAT checking result: sat" << endl
-                 << "satisfiable trace:" << endl;
+            cout << "SAT checking result: sat" << endl;
             checker.print_evidence();
             cout << "push items to stack:" << endl;
         }
