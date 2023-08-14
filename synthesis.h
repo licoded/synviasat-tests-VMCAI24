@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <sys/time.h>
 
 #include "formula_in_bdd.h"
@@ -35,6 +36,10 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, c
 class Syn_Frame
 {
 public:
+    static int print_state_cnt;
+    static unordered_map<int, string> print_states;
+    static string get_print_id(int state_id);
+
     // number of variables
     static int num_varX_;
     static int num_varY_;
@@ -69,6 +74,7 @@ public:
     // tell the frame the result of current choice
     // and the frame performs some operations
     void process_signal(Signal signal, bool verbose = false);
+    void process_signal_printInfo(Signal signal, aalta_formula *before_af, aalta_formula *after_af);
 
     // whther the current frame is
     // the beginning of a sat trace
