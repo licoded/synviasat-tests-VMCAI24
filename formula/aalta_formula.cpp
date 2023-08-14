@@ -1573,11 +1573,92 @@ aalta_formula::to_string () const
 {
   if (_left == NULL && _right == NULL)
     return names[_op];// + "[" + convert_to_string(_id) + "]";
+  if (_op == Not)
+    return "!" + _right->to_string ();
   if (_left == NULL)
     return "(" + names[_op] + " " + _right->to_string () + ")";// + "[" + convert_to_string(_id) + "]";
   if (_right == NULL)
     return "(" + _left->to_string () + " " + names[_op] + ")";// + "[" + convert_to_string(_id) + "]";
+  if ((_op == And || _op == Or))
+  {
+    string raw_left = _left->to_string();
+    string raw_right = _right->to_string();
+    if((_right->oper() == _op) && (_left->oper() == _op))
+    {
+          // "(a & b)"
+          // "(c & d)"
+          string tmp = raw_left.substr(0, raw_left.size()-1) + " " + names[_op] + " " + raw_right.substr(1, raw_right.size()-1);
+          return tmp;
+    }
+    if(_right->oper() == _op)
+    {
+          string tmp = raw_right;
+          // "(a & b)"
+          // "c & "
+          string tmp_cur = raw_left + " " + names[_op] + " ";
+          tmp.insert(1, tmp_cur);
+          return tmp;
+    }
+    if(_left->oper() == _op)
+    {
+          string tmp = raw_left;
+          // "(a & b)"
+          // " & c"
+          string tmp_cur =  " " + names[_op] + " " + raw_right;
+          tmp.insert(tmp.size()-1, tmp_cur);
+          return tmp;
+    }
+    return "(" + raw_left + " " + names[_op] + " " + raw_right + ")";
+  }
+  if (_left == TRUE() && _op == Until)
+    return "(F " + _right->to_string () + ")";
+  if (_left == FALSE() && _op == Release)
+    return "(G " + _right->to_string () + ")";
   return "(" + _left->to_string () + " " + names[_op] + " " + _right->to_string () + ")";// + "[" + convert_to_string(_id) + "]";
+}
+
+std::string
+aalta_formula::to_set_string ()
+{
+  aalta_formula::af_prt_set tmp_af_set_ = to_set();
+  string s = "(";
+  for (aalta_formula::af_prt_set::iterator it = tmp_af_set_.begin(); it != tmp_af_set_.end(); it++)
+  {
+    string tmp = (*it)->to_string();
+    if (tmp.find("Tail") != string::npos)
+          continue;
+    s += tmp + ", ";
+  }
+  s += ")";
+  return s;
+}
+
+bool literal_cmp(aalta_formula *a, aalta_formula *b)
+{
+  string tmp_a = ((a->oper()) == aalta_formula::Not) ? ((a->r_af())->to_string()) : (a->to_string());
+  string tmp_b = ((b->oper()) == aalta_formula::Not) ? ((b->r_af())->to_string()) : (b->to_string());
+  return tmp_a < tmp_b;
+}
+
+std::string
+aalta_formula::to_literal_set_string ()
+{
+  aalta_formula::af_prt_set tmp_af_set_ = to_set();
+  vector<aalta_formula *> vec;
+  for (aalta_formula::af_prt_set::iterator it = tmp_af_set_.begin(); it != tmp_af_set_.end(); it++)
+    vec.push_back(*it);
+  sort(vec.begin(), vec.end(), literal_cmp);
+
+  string s = "(";
+  for (auto it = vec.begin(); it != vec.end(); it++)
+  {
+    string tmp = (((*it)->oper()) == aalta_formula::Not) ? ("!!!" + ((*it)->r_af())->to_string()) : ((*it)->to_string());
+    if (tmp.find("Tail") != string::npos)
+          continue;
+    s += tmp + ", ";
+  }
+  s += ")";
+  return s;
 }
 
 
