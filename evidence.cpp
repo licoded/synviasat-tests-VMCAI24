@@ -35,6 +35,12 @@ namespace aalta
 		for (hash_map<int, bool>::iterator it = e.begin(); it != e.end(); it++)
 		{
 			string tmp = aalta_formula::get_name(it->first);
+			if (tmp.find("!") != string::npos)
+			{
+				tmp = tmp.substr(3);				// remove first/open bracket and !/not char
+				tmp = tmp.substr(0, tmp.size()-1);	// remove last/close bracket
+				tmp = "!!!" + tmp;
+			}
 			if (tmp == "Tail")
 				continue;
 			aalta_formula *tmp_f = aalta_formula((it->first), NULL, NULL).unique();
@@ -65,7 +71,7 @@ namespace aalta
 		aalta_formula *X_af = aalta_formula::TRUE();
 		for (aalta_formula::af_prt_set::iterator it = p.begin(); it != p.end(); it++)
 		{
-			string tmp = (*it)->to_string();
+			string tmp = (((*it)->oper()) == aalta_formula::Not) ? ("!!!" + ((*it)->r_af())->to_string()) : ((*it)->to_string());
 			if (tmp.find("Tail") != string::npos)
 				continue;
 			s += tmp + ", ";
@@ -89,9 +95,15 @@ namespace aalta
 	void Evidence::print()
 	{
 		// cout << "Find satisfying model: \n";
-		for (int i = 0; i < traces_.size(); i++)
+		cout << "\t\tLTLf SAT trace: " << endl;
+		for (auto it = sat_trace_->begin(); it != sat_trace_->end(); it++)
 		{
-			cout << traces_[i] << endl;
+			aalta_formula *trace_Y = it->first;
+			aalta_formula *trace_X = it->second;
+			cout
+				<< "\t\t\tY = " << trace_Y->to_literal_set_string() << endl
+				<< "\t\t\tX = " << trace_X->to_literal_set_string() << endl
+				<< "====" << endl;
 		}
 	}
 
