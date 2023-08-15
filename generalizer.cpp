@@ -258,6 +258,16 @@ aalta_formula *mk_and(aalta_formula::af_prt_set *af_set)
     return res;
 }
 
+bool IsUnsat(aalta_formula *phi)
+{
+    phi = phi->add_tail();
+    phi = phi->remove_wnext();
+    phi = phi->simplify();
+    phi = phi->split_next();
+    CARChecker checker(phi, false, false);
+    return !(checker.check());
+}
+
 bool IsUnsat(aalta_formula *phi, aalta_formula::af_prt_set *psi, list<aalta_formula::af_prt_set *> &S, aalta_formula::af_prt_set &muc)
 {
     phi = aalta_formula(aalta_formula::And, phi, mk_and(psi)).unique();
