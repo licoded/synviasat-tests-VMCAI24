@@ -222,8 +222,8 @@ const vector<string> signal2str = {
     "To_winning_state",
     "To_failure_state",
     "Accepting_edge",
-    "Incomplete_Y",
     "NoWay"
+    "Incomplete_Y",
 };
 void Syn_Frame::process_signal_printInfo(Signal signal, aalta_formula *before_af, aalta_formula *after_af)
 {
