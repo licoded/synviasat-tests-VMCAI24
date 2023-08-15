@@ -296,6 +296,14 @@ void Syn_Frame::process_signal(Signal signal, bool verbose)
     {
         aalta_formula *state = state_in_bdd_->GetFormulaPointer();
         state = aalta_formula(aalta_formula::And, state, X_constraint_).unique();
+        if (IsUnsat(state))
+        {
+            if (verbose)
+                cout << "NoWay: (state & X_constraint_) itself is unsat, so the current state is Unrealizable." << endl;
+            Syn_Frame::failure_state.insert(ull(state_in_bdd_->GetBddPointer()));
+            Syn_Frame::bddP_to_afP[ull(state_in_bdd_->GetBddPointer())] = ull(state_in_bdd_->GetFormulaPointer());
+            break;
+        }
         aalta_formula *y_reduced = Generalize(state, current_Y_, NULL, NoWay);
         if (verbose)
             process_signal_printInfo(signal, current_Y_, y_reduced);
