@@ -71,6 +71,8 @@ public:
         return state_in_bdd_->GetFormulaPointer();
     }
 
+    void calc_X_base();
+
     // tell the frame the result of current choice
     // and the frame performs some operations
     void process_signal(Signal signal, bool verbose = false);
@@ -90,6 +92,10 @@ public:
 
     // return the constraint on edge
     aalta_formula *GetEdgeConstraint();
+    aalta_formula *GetRealX_constraint()
+    {
+        return aalta_formula(aalta_formula::And, X_base_, X_constraint_).unique();
+    }
 
     void SetTravelDirection(aalta_formula *Y, aalta_formula *X);
     inline void ResetTravelDirection()
@@ -112,6 +118,8 @@ private:
     // constraint for X variables
     // initialize by TRUE
     aalta_formula *X_constraint_;
+
+    aalta_formula *X_base_;
 
     aalta_formula *current_Y_;
     aalta_formula *current_X_;
