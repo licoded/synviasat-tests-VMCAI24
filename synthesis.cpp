@@ -182,6 +182,7 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, c
 Syn_Frame::Syn_Frame(aalta_formula *af)
 {
     state_in_bdd_ = new FormulaInBdd(af);
+    X_base_ = aalta_formula::TRUE();
     Y_constraint_ = aalta_formula::TRUE();
     X_constraint_ = aalta_formula::TRUE();
     current_Y_ = NULL;
@@ -209,7 +210,7 @@ Status Syn_Frame::CheckRealizability(bool verbose)
             cout << "all value of Y-variables has been traveled" << endl;
         return Unrealizable;
     }
-    if (EdgeConstraintIsUnsat(X_constraint_))
+    if (EdgeConstraintIsUnsat(GetRealX_constraint()->simplify()))
     {
         if (verbose)
             cout << "for a Y, all value of X-variables has been traveled" << endl;
@@ -250,6 +251,7 @@ void Syn_Frame::process_signal(Signal signal, bool verbose)
     {
     case To_winning_state:
     {
+        calc_X_base();
         aalta_formula *x_reduced = Generalize(state_in_bdd_->GetFormulaPointer(), current_Y_, current_X_, To_winning_state);
         if (verbose)
             process_signal_printInfo(signal, current_X_, x_reduced);
@@ -272,6 +274,7 @@ void Syn_Frame::process_signal(Signal signal, bool verbose)
     }
     case Accepting_edge:
     {
+        calc_X_base();
         aalta_formula *x_reduced = Generalize(state_in_bdd_->GetFormulaPointer(), current_Y_, current_X_, Accepting_edge);
         if (verbose)
             process_signal_printInfo(signal, current_X_, x_reduced);
@@ -295,7 +298,7 @@ void Syn_Frame::process_signal(Signal signal, bool verbose)
     case NoWay:
     {
         aalta_formula *state = state_in_bdd_->GetFormulaPointer();
-        state = aalta_formula(aalta_formula::And, state, X_constraint_).unique();
+        state = aalta_formula(aalta_formula::And, state, GetRealX_constraint()).unique();
         if (IsUnsat(state))
         {
             if (verbose)
@@ -322,9 +325,9 @@ void Syn_Frame::process_signal(Signal signal, bool verbose)
 aalta_formula *Syn_Frame::GetEdgeConstraint()
 {
     if (current_Y_ == NULL)
-        return Y_constraint_;
+        return aalta_formula(aalta_formula::And, Y_constraint_, X_base_).unique();
     else
-        return aalta_formula(aalta_formula::And, current_Y_, X_constraint_).unique();
+        return aalta_formula(aalta_formula::And, current_Y_, GetRealX_constraint()).unique();
 }
 
 void Syn_Frame::PrintInfo()
@@ -332,6 +335,8 @@ void Syn_Frame::PrintInfo()
     cout << "state formula: " << (state_in_bdd_->GetFormulaPointer())->to_string() << endl;
     cout << "Y constraint: " << Y_constraint_->to_string() << endl;
     cout << "X constraint: " << X_constraint_->to_string() << endl;
+    cout << "X base: " << X_base_->to_string() << endl;
+    cout << "Real X constraint: " << GetRealX_constraint()->to_string() << endl;
     if (current_Y_ != NULL)
         cout << "current Y: " << current_Y_->to_literal_set_string() << endl;
     if (current_X_ != NULL)
@@ -776,4 +781,28 @@ bool RepeatState(list<Syn_Frame *> &prefix, DdNode *state)
         if (state == ((*it)->GetBddPointer()))
             return true;
     return false;
+}
+
+void Syn_Frame::calc_X_base()
+{
+    unordered_set<int> x_edge;
+
+    x_edge.clear();
+    current_X_->to_set(x_edge);
+    if (!BaseWinningAtY(state_in_bdd_->GetFormulaPointer(), x_edge))
+        return;
+
+    aalta_formula *x_reduced = Generalize(state_in_bdd_->GetFormulaPointer(), aalta_formula::TRUE(), current_X_, Accepting_edge);
+
+    x_edge.clear();
+    x_reduced->to_set(x_edge);
+    if (!BaseWinningAtY(state_in_bdd_->GetFormulaPointer(), x_edge))
+    {
+        cout << "ERROR(maybe): BaseWinningAtY failed after Generalize(Accepting_edge) in calc_X_base." << endl
+             << "\t\tIs TestFprog for Generalize(Accepting_edge) wrong?" << endl;
+        return;
+    }
+
+    aalta_formula *neg_x_reduced = aalta_formula(aalta_formula::Not, NULL, x_reduced).nnf();
+    X_base_ = (aalta_formula(aalta_formula::And, X_base_, neg_x_reduced).simplify())->unique();
 }
