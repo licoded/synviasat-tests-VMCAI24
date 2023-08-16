@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 	fin.open(argv[2], ios::in);
 	if (!fin.is_open())
 	{
-		cout << "cannot open file " << argv[1] << endl;
+		cout << "cannot open file " << argv[2] << endl;
 		return 0;
 	}
 	fin >> tmp;
