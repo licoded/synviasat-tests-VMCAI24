@@ -95,6 +95,11 @@ void test5()
 	cout << f2->to_string() << endl;
 	// aalta_formula *f2_false = aalta_formula("((s_1 & (G ((!h_0 | !h_1) & (h_0 | !t) & (X s_1)))) | s_1 | (F ((!s_0 & !s_1) | (!h_0 & (X[!] s_0)) | (h_0 & (X[!] s_1)))))").unique();
 	// aalta_formula *f2_true = aalta_formula("True").unique();
+	/**
+	 * f2_true is TRUE for LTLf syntax, while f2_false is TRUE for LTL syntax.
+	 * And we don't need to handle TAIL/accepting_edge in our codes, no matter in synthesis or aaltaf.
+	 * So, current FormulaProgression is just enough for use.
+	*/
 }
 
 int main(int argc, char **argv)
