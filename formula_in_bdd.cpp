@@ -141,6 +141,27 @@ DdNode *FormulaInBdd::ConstructBdd(aalta_formula *af)
     }
 }
 
+// check whether af1 implies af2
+bool FormulaInBdd::Implies(aalta_formula *af1, aalta_formula *af2)
+{
+    DdNode *f1 = ConstructBdd(af1);
+    DdNode *f2 = ConstructBdd(af2);
+    DdNode *not_f2 = Cudd_Not(f2);
+    Cudd_Ref(not_f2);
+    Cudd_RecursiveDeref(global_bdd_manager_, f2);
+    DdNode *f1_and_not_f2 = Cudd_bddAnd(global_bdd_manager_, f1, not_f2);
+    Cudd_Ref(f1_and_not_f2);
+    Cudd_RecursiveDeref(global_bdd_manager_, f1);
+    Cudd_RecursiveDeref(global_bdd_manager_, not_f2);
+    if (f1_and_not_f2 == FALSE_bddP_)   // f1 & !f2 = !(f1 -> f2)
+        return true;
+    else
+    {
+        Cudd_RecursiveDeref(global_bdd_manager_, f1_and_not_f2);
+        return false;
+    }
+}
+
 void FormulaInBdd::PrintMapInfo()
 {
     cout << "src formula:" << src_formula_->to_string() << "\nPropositional Atoms:\n";
