@@ -27,7 +27,7 @@ private:
     aalta_formula *formula_;
     DdNode *bdd_;
 
-    DdNode *ConstructBdd(aalta_formula *af);
+    static DdNode *ConstructBdd(aalta_formula *af);
 
 public:
     static DdNode *TRUE_bddP_;
@@ -39,6 +39,10 @@ public:
     FormulaInBdd(aalta_formula *af) : formula_(af) { bdd_ = ConstructBdd(af); }
     inline DdNode *GetBddPointer() { return bdd_; }
     inline aalta_formula *GetFormulaPointer() { return formula_; }
+
+    // if (af1 -> af2) in Boolean semantics, it returns true
+    static bool Implies(aalta_formula *af1, aalta_formula *af2);
+    static bool Implies(DdNode *af1, DdNode *af2);
 
     static void PrintMapInfo();
 };
