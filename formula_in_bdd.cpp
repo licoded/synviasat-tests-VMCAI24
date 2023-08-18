@@ -20,6 +20,8 @@ void FormulaInBdd::InitBdd4LTLf(aalta_formula *src_formula, bool is_xnf)
     global_bdd_manager_ = Cudd_Init(0, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
     TRUE_bddP_ = Cudd_ReadOne(global_bdd_manager_);
     FALSE_bddP_ = Cudd_ReadLogicZero(global_bdd_manager_);
+    Cudd_Ref(TRUE_bddP_);
+    Cudd_Ref(FALSE_bddP_);
     CreatedMap4AaltaP2BddP(src_formula_, is_xnf);
     // PrintMapInfo();
 }
@@ -48,7 +50,10 @@ void FormulaInBdd::CreatedMap4AaltaP2BddP(aalta_formula *af, bool is_xnf)
     else
     {
         if (aaltaP_to_bddP_.find(ull(af)) == aaltaP_to_bddP_.end())
+        {
             aaltaP_to_bddP_[ull(af)] = ull(Cudd_bddNewVar(global_bdd_manager_));
+            Cudd_Ref((DdNode*)(aaltaP_to_bddP_[ull(af)]));
+        }
     }
     if (op == aalta_formula::Next || op == aalta_formula::WNext)
     {
@@ -104,9 +109,15 @@ DdNode *FormulaInBdd::ConstructBdd(aalta_formula *af)
         return NULL;
     int op = af->oper();
     if (op == aalta_formula::True)
+    {
+        Cudd_Ref(TRUE_bddP_);
         return TRUE_bddP_;
+    }
     else if (op == aalta_formula::False)
+    {
+        Cudd_Ref(FALSE_bddP_);
         return FALSE_bddP_;
+    }
     else if (op == aalta_formula::Not)
     {
         DdNode *tmp = ConstructBdd(af->r_af());
@@ -137,6 +148,7 @@ DdNode *FormulaInBdd::ConstructBdd(aalta_formula *af)
     }
     else
     {
+        Cudd_Ref((DdNode *)(aaltaP_to_bddP_[ull(af)]));
         return (DdNode *)(aaltaP_to_bddP_[ull(af)]);
     }
 }
@@ -153,13 +165,8 @@ bool FormulaInBdd::Implies(aalta_formula *af1, aalta_formula *af2)
     Cudd_Ref(f1_and_not_f2);
     Cudd_RecursiveDeref(global_bdd_manager_, f1);
     Cudd_RecursiveDeref(global_bdd_manager_, not_f2);
-    if (f1_and_not_f2 == FALSE_bddP_)   // f1 & !f2 = !(f1 -> f2)
-        return true;
-    else
-    {
-        Cudd_RecursiveDeref(global_bdd_manager_, f1_and_not_f2);
-        return false;
-    }
+    Cudd_RecursiveDeref(global_bdd_manager_, f1_and_not_f2);
+    return (f1_and_not_f2 == FALSE_bddP_);
 }
 
 bool FormulaInBdd::Implies(DdNode *f1, DdNode *f2)
