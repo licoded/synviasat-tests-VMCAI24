@@ -362,7 +362,6 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
     // cout << "begin sat solving" << endl;
     gettimeofday(&t1, NULL);
     CARChecker checker(f, false, true);
-    BlockState(checker, searcher, verbose);
     bool check_res = checker.check();
     gettimeofday(&t2, NULL);
     timeuse = (t2.tv_sec - t1.tv_sec) * 1000.0 + (t2.tv_usec - t1.tv_usec) / 1000.0;
