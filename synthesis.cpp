@@ -136,30 +136,8 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, c
             searcher.pop_back(); ///////////
 
             // encounter Unrealizable
-            // backtrack the beginning of the sat trace
-            if (verbose)
-            {
-                cout << "encounter failure state, backtrack to the beginning of the sat trace" << endl;
-            }
-            while (true)
-            {
-                auto tmp = searcher.back();
-                if (tmp->IsTraceBeginning())
-                {
-                    if (verbose)
-                        cout << "arrive at beginning, stop popping" << endl;
-                    // tmp->process_signal(To_failure_state, verbose);
-                    tmp->ResetTravelDirection();
-                    break;
-                }
-                else
-                {
-                    if (verbose)
-                        cout << "pop state: " << (tmp->GetFormulaPointer())->to_string() << endl;
-                    delete tmp;
-                    searcher.pop_back();
-                }
-            }
+            // backtrack only the failure/unrealizable state
+            (searcher.back())->process_signal(To_failure_state, verbose);
             break;
         }
         case Unknown:
@@ -263,6 +241,8 @@ void Syn_Frame::process_signal(Signal signal, bool verbose)
     case To_failure_state:
     {
         aalta_formula *y_reduced = Generalize(state_in_bdd_->GetFormulaPointer(), current_Y_, current_X_, To_failure_state);
+        if (verbose)
+            process_signal_printInfo(signal, current_Y_, y_reduced);
         aalta_formula *neg_y_reduced = aalta_formula(aalta_formula::Not, NULL, y_reduced).nnf();
         Y_constraint_ = (aalta_formula(aalta_formula::And, Y_constraint_, neg_y_reduced).simplify())->unique();
 
@@ -524,26 +504,7 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
                 Syn_Frame::bddP_to_afP[ull(bdd_ptr)] = ull((searcher.back())->GetFormulaPointer());
                 delete (searcher.back());
                 searcher.pop_back();
-                //(searcher.back())->process_signal(To_failure_state, verbose);
-                while (true)
-                {
-                    auto tmp = searcher.back();
-                    if (tmp->IsTraceBeginning())
-                    {
-                        if (verbose)
-                            cout << "arrive at beginning, stop popping" << endl;
-                        // tmp->process_signal(To_failure_state, verbose);
-                        tmp->ResetTravelDirection();
-                        break;
-                    }
-                    else
-                    {
-                        if (verbose)
-                            cout << "pop state: " << (tmp->GetFormulaPointer())->to_string() << endl;
-                        delete tmp;
-                        searcher.pop_back();
-                    }
-                }
+                (searcher.back())->process_signal(To_failure_state, verbose);
             }
         }
         else
