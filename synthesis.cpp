@@ -411,6 +411,11 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
             // }
             X_edge->to_set(edge);
             aalta_formula *successor = FormulaProgression(predecessor, edge);
+            if (need_block(searcher, successor))
+            {
+                (searcher.back())->process_signal(To_failure_state, verbose);
+                return Unknown;
+            }
             // successor = xnf(successor);
             Syn_Frame *frame = new Syn_Frame(successor);
             // { // check same state
