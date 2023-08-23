@@ -52,6 +52,13 @@ public:
     static unordered_set<ull> winning_state;
     static unordered_set<ull> failure_state;
 
+    static void insert_winning_state(DdNode *bddP);
+    static void insert_winning_state(FormulaInBdd *state_in_bdd_);
+
+    static void insert_failure_state(DdNode *bddP, aalta_formula *afP);
+    static void insert_failure_state(Syn_Frame *syn_frame_);
+    static void insert_failure_state(FormulaInBdd *state_in_bdd_);
+
     // from bdd pointer to aalta_formula pointer
     // for blocking failure state
     static map<ull, ull> bddP_to_afP;

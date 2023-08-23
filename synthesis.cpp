@@ -29,6 +29,36 @@ map<ull, ull> Syn_Frame::bddP_to_afP;
 int Syn_Frame::sat_call_cnt;
 long double Syn_Frame::average_sat_time;
 
+void Syn_Frame::insert_winning_state(DdNode *bddP)
+{
+    if (Syn_Frame::winning_state.find(ull(bddP)) != Syn_Frame::winning_state.end())
+        return;
+    Syn_Frame::winning_state.insert(ull(bddP));
+}
+
+void Syn_Frame::insert_winning_state(FormulaInBdd *state_in_bdd_)
+{
+    Syn_Frame::insert_winning_state(state_in_bdd_->GetBddPointer());
+}
+
+void Syn_Frame::insert_failure_state(DdNode *bddP, aalta_formula *afP)
+{
+    if (Syn_Frame::failure_state.find(ull(bddP)) != Syn_Frame::failure_state.end())
+        return;
+    Syn_Frame::failure_state.insert(ull(bddP));
+    Syn_Frame::bddP_to_afP[ull(bddP)] = ull(afP);
+}
+
+void Syn_Frame::insert_failure_state(Syn_Frame *syn_frame_)
+{
+    Syn_Frame::insert_failure_state(syn_frame_->GetBddPointer(), syn_frame_->GetFormulaPointer());
+}
+
+void Syn_Frame::insert_failure_state(FormulaInBdd *state_in_bdd_)
+{
+    Syn_Frame::insert_failure_state(state_in_bdd_->GetBddPointer(), state_in_bdd_->GetFormulaPointer());
+}
+
 bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, const struct timeval &prog_start, bool verbose)
 {
     //   partition atoms and save index values respectively
@@ -54,9 +84,8 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, c
 
     // initializa utils of bdd
     FormulaInBdd::InitBdd4LTLf(src_formula, false);
-    Syn_Frame::winning_state.insert(ull(FormulaInBdd::TRUE_bddP_));
-    Syn_Frame::failure_state.insert(ull(FormulaInBdd::FALSE_bddP_));
-    Syn_Frame::bddP_to_afP[ull(FormulaInBdd::FALSE_bddP_)] = ull(aalta_formula::FALSE());
+    Syn_Frame::insert_winning_state(FormulaInBdd::TRUE_bddP_);
+    Syn_Frame::insert_failure_state(FormulaInBdd::FALSE_bddP_, aalta_formula::FALSE());
 
     list<Syn_Frame *> searcher;
     Syn_Frame *init = new Syn_Frame(src_formula); // xnf(src_formula)
@@ -107,7 +136,7 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, c
                 cout << ", then pop the top item." << endl
                      << "insert to winning state: " << (cur_frame->GetFormulaPointer())->to_string() << endl
                      << "insert to winning state id: " << Syn_Frame::get_print_id((cur_frame->GetFormulaPointer())->id()) << endl;
-            Syn_Frame::winning_state.insert(ull(cur_frame->GetBddPointer()));
+            Syn_Frame::insert_winning_state(cur_frame->GetBddPointer());
             delete cur_frame;
             searcher.pop_back();
             (searcher.back())->process_signal(To_winning_state, verbose);
@@ -130,8 +159,7 @@ bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, c
                 cout << ", then pop the top item." << endl
                      << "insert to failure state: " << (cur_frame->GetFormulaPointer())->to_string() << endl
                      << "insert to failure state id: " << Syn_Frame::get_print_id((cur_frame->GetFormulaPointer())->id()) << endl;
-            Syn_Frame::failure_state.insert(ull(cur_frame->GetBddPointer()));
-            Syn_Frame::bddP_to_afP[ull(cur_frame->GetBddPointer())] = ull(cur_frame->GetFormulaPointer());
+            Syn_Frame::insert_failure_state(cur_frame);
             delete cur_frame;    //////////////
             searcher.pop_back(); ///////////
 
@@ -283,8 +311,7 @@ void Syn_Frame::process_signal(Signal signal, bool verbose)
         {
             if (verbose)
                 cout << "NoWay: (state & X_constraint_) itself is unsat, so the current state is Unrealizable." << endl;
-            Syn_Frame::failure_state.insert(ull(state_in_bdd_->GetBddPointer()));
-            Syn_Frame::bddP_to_afP[ull(state_in_bdd_->GetBddPointer())] = ull(state_in_bdd_->GetFormulaPointer());
+            Syn_Frame::insert_failure_state(state_in_bdd_);
             break;
         }
         aalta_formula *y_reduced = Generalize(state, current_Y_, NULL, NoWay);
@@ -454,7 +481,7 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
                          << "insert to winning state: " << ((searcher.back())->GetFormulaPointer())->to_string() << endl
                          << "insert to winning state id: " << Syn_Frame::get_print_id(((searcher.back())->GetFormulaPointer())->id()) << endl
                          << "=====BaseWinningAtY\tEND" << endl;
-                Syn_Frame::winning_state.insert(ull((searcher.back())->GetBddPointer()));
+                Syn_Frame::insert_winning_state((searcher.back())->GetBddPointer());
                 delete searcher.back();
                 searcher.pop_back();
                 (searcher.back())->process_signal(To_winning_state, verbose);
@@ -498,9 +525,7 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
                     cout << "pop the top item." << endl
                          << "insert to failure state: " << ((searcher.back())->GetFormulaPointer())->to_string() << endl
                          << "insert to failure state id: " << Syn_Frame::get_print_id(((searcher.back())->GetFormulaPointer())->id()) << endl;
-                auto bdd_ptr = (searcher.back())->GetBddPointer();
-                Syn_Frame::failure_state.insert(ull(bdd_ptr));
-                Syn_Frame::bddP_to_afP[ull(bdd_ptr)] = ull((searcher.back())->GetFormulaPointer());
+                Syn_Frame::insert_failure_state(searcher.back());
                 delete (searcher.back());
                 searcher.pop_back();
                 (searcher.back())->process_signal(To_failure_state, verbose);
