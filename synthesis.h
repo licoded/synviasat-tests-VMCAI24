@@ -52,12 +52,18 @@ public:
     static unordered_set<ull> winning_state;
     static unordered_set<ull> failure_state;
 
+    static vector<DdNode *> winning_state_vec;
+    static vector<DdNode *> failure_state_vec;
+
     static void insert_winning_state(DdNode *bddP);
     static void insert_winning_state(FormulaInBdd *state_in_bdd_);
 
     static void insert_failure_state(DdNode *bddP, aalta_formula *afP);
     static void insert_failure_state(Syn_Frame *syn_frame_);
     static void insert_failure_state(FormulaInBdd *state_in_bdd_);
+
+    bool KnownFailure(bool verbose = false);
+    bool KnownWinning(bool verbose = false);
 
     // from bdd pointer to aalta_formula pointer
     // for blocking failure state
@@ -131,6 +137,9 @@ private:
     aalta_formula *current_Y_;
     aalta_formula *current_X_;
 
+    int winning_checked_idx_;
+    int failure_checked_idx_;
+
     // whther the current frame is
     // the beginning of a sat trace
     bool is_trace_beginning_;
@@ -141,6 +150,8 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
 aalta_formula *FormulaProgression(aalta_formula *predecessor, unordered_set<int> &edge);
 
 bool BaseWinningAtY(aalta_formula *end_state, unordered_set<int> &Y);
+
+bool repeat_with_prefix(list<Syn_Frame *> &prefix, aalta_formula *dfa_state, bool verbose = false);
 
 bool need_block(list<Syn_Frame *> &prefix, aalta_formula *dfa_state);
 
