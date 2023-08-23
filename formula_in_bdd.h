@@ -42,6 +42,7 @@ public:
 
     // if (af1 -> af2) in Boolean semantics, it returns true
     static bool Implies(aalta_formula *af1, aalta_formula *af2);
+    static bool Implies(DdNode *af1, DdNode *af2);
 
     static void PrintMapInfo();
 };

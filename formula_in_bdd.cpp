@@ -169,6 +169,17 @@ bool FormulaInBdd::Implies(aalta_formula *af1, aalta_formula *af2)
     return (f1_and_not_f2 == FALSE_bddP_);
 }
 
+bool FormulaInBdd::Implies(DdNode *f1, DdNode *f2)
+{
+    DdNode *not_f2 = Cudd_Not(f2);
+    Cudd_Ref(not_f2);
+    DdNode *f1_and_not_f2 = Cudd_bddAnd(global_bdd_manager_, f1, not_f2);
+    Cudd_Ref(f1_and_not_f2);
+    Cudd_RecursiveDeref(global_bdd_manager_, not_f2);
+    Cudd_RecursiveDeref(global_bdd_manager_, f1_and_not_f2);
+    return (f1_and_not_f2 == FALSE_bddP_);
+}
+
 void FormulaInBdd::PrintMapInfo()
 {
     cout << "src formula:" << src_formula_->to_string() << "\nPropositional Atoms:\n";
