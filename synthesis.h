@@ -135,6 +135,8 @@ aalta_formula *FormulaProgression(aalta_formula *predecessor, unordered_set<int>
 
 bool BaseWinningAtY(aalta_formula *end_state, unordered_set<int> &Y);
 
+bool need_block(list<Syn_Frame *> &prefix, aalta_formula *dfa_state);
+
 // partition atoms and save index values respectively
 void PartitionAtoms(aalta_formula *af, unordered_set<string> &env_val);
 

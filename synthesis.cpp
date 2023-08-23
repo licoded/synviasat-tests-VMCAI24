@@ -625,6 +625,38 @@ bool BaseWinningAtY(aalta_formula *end_state, unordered_set<int> &Y)
         return BaseWinningAtY(end_state->r_af(), Y);
 }
 
+bool need_block(list<Syn_Frame *> &prefix, aalta_formula *dfa_state)
+{
+    FormulaInBdd *state_in_bdd_ = new FormulaInBdd(dfa_state);
+    // block failure_states directly
+    if (Syn_Frame::failure_state.find(ull(state_in_bdd_->GetBddPointer())) != Syn_Frame::failure_state.end())
+    {
+        dout << "==============\nneed block: " << Syn_Frame::get_print_id(state_in_bdd_->GetFormulaPointer()->id()) << endl;
+        return true;
+    }
+
+    // traverse failure_state to check if imply dfa_state
+    for (auto it = Syn_Frame::failure_state.begin(); it != Syn_Frame::failure_state.end(); it++)
+    {
+        if (FormulaInBdd::Implies(dfa_state, (aalta_formula* )(Syn_Frame::bddP_to_afP[*it])))
+        {
+            dout << "==============\nneed block: " << Syn_Frame::get_print_id(state_in_bdd_->GetFormulaPointer()->id()) << endl;
+            return true;
+        }
+    }
+
+    // block prefix
+    for (auto it = prefix.begin(); it != prefix.end(); it++)
+    {
+        if (FormulaInBdd::Implies(dfa_state, (*it)->GetFormulaPointer()))
+        {
+            dout << "==============\nneed block: " << Syn_Frame::get_print_id(state_in_bdd_->GetFormulaPointer()->id()) << endl;
+            return true;
+        }
+    }
+    return false;
+}
+
 // partition atoms and save index values respectively
 void PartitionAtoms(aalta_formula *af, unordered_set<string> &env_val)
 {
