@@ -25,6 +25,8 @@ set<int> Syn_Frame::var_X;
 set<int> Syn_Frame::var_Y;
 unordered_set<ull> Syn_Frame::winning_state;
 unordered_set<ull> Syn_Frame::failure_state;
+vector<DdNode *> Syn_Frame::winning_state_vec;
+vector<DdNode *> Syn_Frame::failure_state_vec;
 map<ull, ull> Syn_Frame::bddP_to_afP;
 int Syn_Frame::sat_call_cnt;
 long double Syn_Frame::average_sat_time;
@@ -34,6 +36,7 @@ void Syn_Frame::insert_winning_state(DdNode *bddP)
     if (Syn_Frame::winning_state.find(ull(bddP)) != Syn_Frame::winning_state.end())
         return;
     Syn_Frame::winning_state.insert(ull(bddP));
+    Syn_Frame::winning_state_vec.push_back(bddP);
 }
 
 void Syn_Frame::insert_winning_state(FormulaInBdd *state_in_bdd_)
@@ -47,6 +50,7 @@ void Syn_Frame::insert_failure_state(DdNode *bddP, aalta_formula *afP)
         return;
     Syn_Frame::failure_state.insert(ull(bddP));
     Syn_Frame::bddP_to_afP[ull(bddP)] = ull(afP);
+    Syn_Frame::failure_state_vec.push_back(bddP);
 }
 
 void Syn_Frame::insert_failure_state(Syn_Frame *syn_frame_)
@@ -193,18 +197,20 @@ Syn_Frame::Syn_Frame(aalta_formula *af)
     X_constraint_ = aalta_formula::TRUE();
     current_Y_ = NULL;
     current_X_ = NULL;
+    winning_checked_idx_ = 0;
+    failure_checked_idx_ = 0;
     is_trace_beginning_ = false;
 }
 
 Status Syn_Frame::CheckRealizability(bool verbose)
 {
-    if (Syn_Frame::winning_state.find(ull(state_in_bdd_->GetBddPointer())) != Syn_Frame::winning_state.end())
+    if (KnownWinning(verbose))
     {
         if (verbose)
             cout << "known winning state" << endl;
         return Realizable;
     }
-    if (Syn_Frame::failure_state.find(ull(state_in_bdd_->GetBddPointer())) != Syn_Frame::failure_state.end())
+    if (KnownFailure(verbose))
     {
         if (verbose)
             cout << "known failure state" << endl;
@@ -223,6 +229,79 @@ Status Syn_Frame::CheckRealizability(bool verbose)
         return Realizable;
     }
     return Unknown;
+}
+
+bool Syn_Frame::KnownWinning(bool verbose)
+{
+    // find in set winning_state
+    if (Syn_Frame::winning_state.find(ull(state_in_bdd_->GetBddPointer())) != Syn_Frame::winning_state.end())
+    {
+        if (verbose)
+        {
+            aalta_formula *af = (aalta_formula *)Syn_Frame::bddP_to_afP[ull(state_in_bdd_->GetBddPointer())];
+            cout 
+                << "known winning state -- find in set -- " 
+                << endl;
+        }
+        return true;
+    }
+
+    // traverse winning_state_vec to check if imply dfa_state
+    for (; winning_checked_idx_ < winning_state_vec.size(); winning_checked_idx_++)
+    {
+        // A|B -> A|B|C, A&B&C -> A&B
+        if (FormulaInBdd::Implies(winning_state_vec[winning_checked_idx_], state_in_bdd_->GetBddPointer()))
+        {
+            if (verbose)
+            {
+                aalta_formula *af = state_in_bdd_->GetFormulaPointer();
+                cout 
+                    << "known winning state -- find by implies -- " 
+                    << "\t current state id: " << Syn_Frame::get_print_id(af->id()) << endl
+                    << "\t current state: " << state_in_bdd_->GetFormulaPointer()->to_string() << endl;
+            }
+            Syn_Frame::insert_winning_state(state_in_bdd_);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Syn_Frame::KnownFailure(bool verbose)
+{
+    // find in set failure_state
+    if (Syn_Frame::failure_state.find(ull(state_in_bdd_->GetBddPointer())) != Syn_Frame::failure_state.end())
+    {
+        if (verbose)
+        {
+            aalta_formula *af = (aalta_formula *)Syn_Frame::bddP_to_afP[ull(state_in_bdd_->GetBddPointer())];
+            cout 
+                << "known failure state -- find in set -- " 
+                << "\tfound state id: " << Syn_Frame::get_print_id(af->id()) << endl;
+        }
+        return true;
+    }
+
+    // traverse failure_state_vec to check if imply dfa_state
+    for (; failure_checked_idx_ < failure_state_vec.size(); failure_checked_idx_++)
+    {
+        // A|B -> A|B|C, A&B&C -> A&B
+        if (FormulaInBdd::Implies(state_in_bdd_->GetBddPointer(), failure_state_vec[failure_checked_idx_]))
+        {
+            if (verbose)
+            {
+                aalta_formula *af = (aalta_formula *)Syn_Frame::bddP_to_afP[ull(failure_state_vec[failure_checked_idx_])];
+                cout 
+                    << "known failure state -- find by implies -- " 
+                    << "\t found state id: " << Syn_Frame::get_print_id(af->id()) << endl
+                    << "\t current state: " << state_in_bdd_->GetFormulaPointer()->to_string() << endl;
+            }
+            Syn_Frame::insert_failure_state(state_in_bdd_);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 const vector<string> signal2str = {
@@ -440,6 +519,18 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
             aalta_formula *successor = FormulaProgression(predecessor, edge);
             // successor = xnf(successor);
             Syn_Frame *frame = new Syn_Frame(successor);
+            if (repeat_with_prefix(searcher, successor, verbose) || frame->KnownFailure(verbose))
+            {
+                delete frame;
+                (searcher.back())->process_signal(To_failure_state, verbose);
+                return Unknown;
+            }
+            if (frame->KnownWinning(verbose))
+            {
+                delete frame;
+                (searcher.back())->process_signal(To_winning_state, verbose);
+                return Unknown;
+            }
             // { // check same state
             //     if (RepeatState(searcher, frame->GetBddPointer()))
             //     {
@@ -648,6 +739,29 @@ bool BaseWinningAtY(aalta_formula *end_state, unordered_set<int> &Y)
     }
     else if (op == aalta_formula::Until || op == aalta_formula::Release)
         return BaseWinningAtY(end_state->r_af(), Y);
+}
+
+bool repeat_with_prefix(list<Syn_Frame *> &prefix, aalta_formula *dfa_state, bool verbose)
+{
+    FormulaInBdd *state_in_bdd_ = new FormulaInBdd(dfa_state);
+    // block prefix
+    for (auto it = prefix.begin(); it != prefix.end(); it++)
+    {
+        // A|B -> A|B|C, A&B&C -> A&B
+        if (ull(state_in_bdd_->GetBddPointer()) == ull((*it)->GetBddPointer()))
+        {
+            if (verbose)
+            {
+                aalta_formula *af = (*it)->GetFormulaPointer();
+                cout 
+                    << "repeat with prefix -- find in prefix by equal -- " 
+                    << "\t found state id: " << Syn_Frame::get_print_id(af->id()) << endl
+                    << "\t current state: " << state_in_bdd_->GetFormulaPointer()->to_string() << endl;
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 // partition atoms and save index values respectively
