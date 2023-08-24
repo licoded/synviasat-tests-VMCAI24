@@ -215,6 +215,7 @@
  				dout << "adding equivalence " << id << " <-> " << SAT_id (f->l_af ()) << " & " << SAT_id_of_next (f) << endl;
 				//special case Xc => X(a U c)
 				tmp = aalta_formula (aalta_formula::Next, NULL, f->r_af()).unique (); 
+				set_max_used_id(tmp->id());
 				add_clause (-f->r_af()->id(), f->id());
 				add_clause (-tmp->id(), SAT_id_of_next (f));
 
