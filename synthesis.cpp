@@ -515,7 +515,7 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
             aalta_formula *successor = FormulaProgression(predecessor, edge);
             // successor = xnf(successor);
             Syn_Frame *frame = new Syn_Frame(successor);
-            if (repeat_with_prefix(searcher, successor, verbose) || frame->KnownFailure())
+            if (repeat_with_prefix(searcher, successor, verbose) || frame->KnownFailure(verbose))
             {
                 delete frame;
                 (searcher.back())->process_signal(To_failure_state, verbose);
@@ -738,13 +738,13 @@ bool repeat_with_prefix(list<Syn_Frame *> &prefix, aalta_formula *dfa_state, boo
     for (auto it = prefix.begin(); it != prefix.end(); it++)
     {
         // A|B -> A|B|C, A&B&C -> A&B
-        if (FormulaInBdd::Implies(dfa_state, (*it)->GetFormulaPointer()))
+        if (ull(state_in_bdd_->GetBddPointer()) == ull((*it)->GetBddPointer()))
         {
             if (verbose)
             {
                 aalta_formula *af = (*it)->GetFormulaPointer();
                 cout 
-                    << "repeat with prefix -- find by implies -- " 
+                    << "repeat with prefix -- find in prefix by equal -- " 
                     << "\t found state id: " << Syn_Frame::get_print_id(af->id()) << endl
                     << "\t current state: " << state_in_bdd_->GetFormulaPointer()->to_string() << endl;
             }
