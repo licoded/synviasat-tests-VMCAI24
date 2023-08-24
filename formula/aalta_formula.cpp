@@ -303,9 +303,9 @@ aalta_formula::simplify_next (aalta_formula *af)
   aalta_formula *simp;
   switch (s->_op)
     {
-    case True: // X True = True
-      simp = aalta_formula::TRUE ();
-      break;
+    // case True: // X True = True
+      // simp = aalta_formula::TRUE ();
+      // break;
     case False: // X False = False
       simp = aalta_formula::FALSE ();
       break;
