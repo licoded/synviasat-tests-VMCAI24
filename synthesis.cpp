@@ -221,10 +221,10 @@ bool Syn_Frame::KnownWinning(bool verbose)
         {
             if (verbose)
             {
-                aalta_formula *af = (aalta_formula *)Syn_Frame::bddP_to_afP[ull(winning_state_vec[winning_checked_idx_])];
+                aalta_formula *af = state_in_bdd_->GetFormulaPointer();
                 cout 
                     << "known winning state -- find by implies -- " 
-                    << "\t found state id: " << Syn_Frame::get_print_id(af->id()) << endl
+                    << "\t current state id: " << Syn_Frame::get_print_id(af->id()) << endl
                     << "\t current state: " << state_in_bdd_->GetFormulaPointer()->to_string() << endl;
             }
             Syn_Frame::insert_winning_state(state_in_bdd_);
