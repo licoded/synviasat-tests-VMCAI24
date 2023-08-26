@@ -33,6 +33,8 @@ long double Syn_Frame::average_sat_time;
 
 void Syn_Frame::insert_winning_state(DdNode *bddP)
 {
+    if (Syn_Frame::winning_state.find(ull(bddP)) != Syn_Frame::winning_state.end())
+        return;
     Syn_Frame::winning_state.insert(ull(bddP));
     Syn_Frame::winning_state_vec.push_back(bddP);
 }
@@ -44,6 +46,8 @@ void Syn_Frame::insert_winning_state(FormulaInBdd *state_in_bdd_)
 
 void Syn_Frame::insert_failure_state(DdNode *bddP, aalta_formula *afP)
 {
+    if (Syn_Frame::failure_state.find(ull(bddP)) != Syn_Frame::failure_state.end())
+        return;
     Syn_Frame::failure_state.insert(ull(bddP));
     Syn_Frame::bddP_to_afP[ull(bddP)] = ull(afP);
     Syn_Frame::failure_state_vec.push_back(bddP);
