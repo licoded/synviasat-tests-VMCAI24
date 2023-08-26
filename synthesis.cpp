@@ -525,6 +525,12 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
                 (searcher.back())->process_signal(To_failure_state, verbose);
                 return Unknown;
             }
+            if (frame->KnownWinning(verbose))
+            {
+                delete frame;
+                (searcher.back())->process_signal(To_winning_state, verbose);
+                return Unknown;
+            }
             // { // check same state
             //     if (RepeatState(searcher, frame->GetBddPointer()))
             //     {
