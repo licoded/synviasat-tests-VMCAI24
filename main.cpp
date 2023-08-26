@@ -161,6 +161,12 @@ int main(int argc, char **argv)
 
 	// perform synthesis
 	// bool result = is_realizable(af, env_var, t1);
+
+	// set time limit
+	const char *timeLimitStr = getenv("TIME_LIMIT");
+	if (timeLimitStr != NULL && strlen(timeLimitStr) > 0)
+		Syn_Frame::setTimeLimit(stoi(timeLimitStr));
+
 	bool result = is_realizable(af, env_var, t1, false);
 	if (result)
 		cout << "Realizable" << endl;

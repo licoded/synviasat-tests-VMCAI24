@@ -12,6 +12,7 @@ using namespace std;
 using namespace aalta;
 
 int Syn_Frame::print_state_cnt = 0;
+int Syn_Frame::TIME_LIMIT_ = 5;
 unordered_map<int, string> Syn_Frame::print_states;
 string Syn_Frame::get_print_id(int state_id)
 {
@@ -473,7 +474,7 @@ Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, boo
     timeuse = (t2.tv_sec - t1.tv_sec) * 1000.0 + (t2.tv_usec - t1.tv_usec) / 1000.0;
     Syn_Frame::average_sat_time = Syn_Frame::average_sat_time + (timeuse - Syn_Frame::average_sat_time) / Syn_Frame::sat_call_cnt;
     long double time_to_start = (t2.tv_sec - prog_start.tv_sec) * 1000.0 + (t2.tv_usec - prog_start.tv_usec) / 1000.0;
-    if ((time_to_start - 300000.0) > 0)
+    if ((time_to_start - Syn_Frame::getTimeLimit()*60000.0) > 0)
     {
         cout << "Runtimeout" << endl;
         cout << "failure state cnt: " << (Syn_Frame::failure_state.size()) - 1 << endl;
