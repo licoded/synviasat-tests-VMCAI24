@@ -121,6 +121,9 @@ public:
 
     void PrintInfo();
 
+    static void setTimeLimit(int time_limit) { TIME_LIMIT_ = time_limit; }
+    static int getTimeLimit() { return TIME_LIMIT_; }
+
 private:
     FormulaInBdd *state_in_bdd_;
 
@@ -143,6 +146,8 @@ private:
     // whther the current frame is
     // the beginning of a sat trace
     bool is_trace_beginning_;
+
+    static int TIME_LIMIT_;
 };
 
 Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, bool verbose = false);
