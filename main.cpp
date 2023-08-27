@@ -166,8 +166,13 @@ int main(int argc, char **argv)
 	const char *timeLimitStr = getenv("TIME_LIMIT");
 	if (timeLimitStr != NULL && strlen(timeLimitStr) > 0)
 		Syn_Frame::setTimeLimit(stoi(timeLimitStr));
+	
+	const char *verboseStr = getenv("VERBOSE");
+    int verbose = false;
+	if (verboseStr != NULL && strlen(verboseStr) > 0)
+		verbose = stoi(verboseStr);
 
-	bool result = is_realizable(af, env_var, t1, false);
+	bool result = is_realizable(af, env_var, t1, verbose);
 	if (result)
 		cout << "Realizable" << endl;
 	else
