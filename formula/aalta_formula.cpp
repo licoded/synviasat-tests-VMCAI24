@@ -1587,7 +1587,7 @@ aalta_formula::to_string () const
     {
           // "(a & b)"
           // "(c & d)"
-          string tmp = raw_left.substr(0, raw_left.size()-1) + " & " + raw_right.substr(1, raw_right.size()-1);
+          string tmp = raw_left.substr(0, raw_left.size()-1) + " " + names[_op] + " " + raw_right.substr(1, raw_right.size()-1);
           return tmp;
     }
     if(_right->oper() == _op)
