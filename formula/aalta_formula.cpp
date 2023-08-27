@@ -1581,33 +1581,34 @@ aalta_formula::to_string () const
     return "(" + _left->to_string () + " " + names[_op] + ")";// + "[" + convert_to_string(_id) + "]";
   if ((_op == And || _op == Or))
   {
+    string raw_left = _left->to_string();
+    string raw_right = _right->to_string();
     if((_right->oper() == _op) && (_left->oper() == _op))
     {
-          string tmp_left = _left->to_string();
-          string tmp_right = _right->to_string();
           // "(a & b)"
           // "(c & d)"
-          string tmp = tmp_left.substr(0, tmp_left.size()-1) + " & " + tmp_right.substr(1, tmp_right.size()-1);
+          string tmp = raw_left.substr(0, raw_left.size()-1) + " & " + raw_right.substr(1, raw_right.size()-1);
           return tmp;
     }
     if(_right->oper() == _op)
     {
-          string tmp = _right->to_string();
+          string tmp = raw_right;
           // "(a & b)"
           // "c & "
-          string tmp_cur = _left->to_string() + " " + names[_op] + " ";
+          string tmp_cur = raw_left + " " + names[_op] + " ";
           tmp.insert(1, tmp_cur);
           return tmp;
     }
     if(_left->oper() == _op)
     {
-          string tmp = _left->to_string();
+          string tmp = raw_left;
           // "(a & b)"
           // " & c"
-          string tmp_cur =  " " + names[_op] + " " + _right->to_string();
+          string tmp_cur =  " " + names[_op] + " " + raw_right;
           tmp.insert(tmp.size()-1, tmp_cur);
           return tmp;
     }
+    return "(" + raw_left + " " + names[_op] + " " + raw_right + ")";
   }
   if (_left == TRUE() && _op == Until)
     return "(F " + _right->to_string () + ")";
