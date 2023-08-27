@@ -95,7 +95,7 @@ Ternary TestAcc(aalta_formula *state, unordered_set<int> &save, unordered_set<in
     else if (op == aalta_formula::Not || op >= 11)
     { // literal
         int lit = (op >= 11) ? op : (-((state->r_af())->oper()));
-        if (lit == test_lit || (-lit) == test_lit || reduced.find(lit) != reduced.end())
+        if (lit == test_lit || (-lit) == test_lit || reduced.find(lit) != reduced.end() || reduced.find(-lit) != reduced.end())
             return Undefined;
         else if (save.find(lit) != save.end() || to_reduce.find(lit) != to_reduce.end())
             return Tt;
