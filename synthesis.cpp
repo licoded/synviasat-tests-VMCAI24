@@ -690,7 +690,11 @@ aalta_formula *FormulaProgression(aalta_formula *predecessor, unordered_set<int>
         aalta_formula *l_fp = FormulaProgression(predecessor->l_af(), edge);
         aalta_formula *second_part = NULL;
         if ((l_fp->oper()) == aalta_formula::True)
+        {
+            if (first_part == predecessor->r_af())
+                return predecessor;
             second_part = predecessor;
+        }
         else if ((l_fp->oper()) == aalta_formula::False)
             return first_part;
         else
