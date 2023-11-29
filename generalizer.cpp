@@ -44,6 +44,8 @@ Ternary TestFprog(aalta_formula *state, unordered_set<int> &save, unordered_set<
         return Tt;
     else if (op == aalta_formula::False)
         return Ff;
+    else if (state == aalta_formula::TAIL())
+        return Ff;
     else if (op == aalta_formula::And || op == aalta_formula::Or)
     {
         Ternary l_val = TestFprog(state->l_af(), save, to_reduce, reduced, test_lit);
@@ -86,6 +88,8 @@ Ternary TestAcc(aalta_formula *state, unordered_set<int> &save, unordered_set<in
         return Tt;
     else if (op == aalta_formula::False || op == aalta_formula::Next)
         return Ff;
+    else if (state == aalta_formula::TAIL())
+        return Tt;
     else if (op == aalta_formula::And || op == aalta_formula::Or)
     {
         Ternary l_val = TestAcc(state->l_af(), save, to_reduce, reduced, test_lit);

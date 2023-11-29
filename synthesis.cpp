@@ -642,6 +642,8 @@ aalta_formula *FormulaProgression(aalta_formula *predecessor, unordered_set<int>
     int op = predecessor->oper();
     if (op == aalta_formula::True || op == aalta_formula::False)
         return predecessor;
+    if (predecessor == aalta_formula::TAIL())
+        return aalta_formula::FALSE();
     else if (op == aalta_formula::And)
     {
         aalta_formula *lf = FormulaProgression(predecessor->l_af(), edge);
@@ -733,6 +735,8 @@ bool BaseWinningAtY(aalta_formula *end_state, unordered_set<int> &Y)
         return true;
     else if (op == aalta_formula::False || op == aalta_formula::Next)
         return false;
+    else if (end_state == aalta_formula::TAIL())
+        return true;
     else if (op == aalta_formula::And)
         return BaseWinningAtY(end_state->l_af(), Y) && BaseWinningAtY(end_state->r_af(), Y);
     else if (op == aalta_formula::Or)
