@@ -99,7 +99,7 @@ namespace aalta
 	{
 		
 		visited_.push_back (f);
-		if (detect_unsat ())
+		if (detect_unsat ())	// check this for recursive invocation
 			return false;
 		if (sat_once (f))
 		{
@@ -110,7 +110,7 @@ namespace aalta
 		else if (f->is_global ())
 		{
 			visited_.pop_back ();
-			push_formula_to_explored (f);
+			push_formula_to_explored (f);	// do this for recursive invocation
 			return false;;
 		}
 		
