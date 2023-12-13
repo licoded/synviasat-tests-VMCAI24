@@ -166,6 +166,11 @@ int main(int argc, char **argv)
 	const char *timeLimitStr = getenv("TIME_LIMIT");
 	if (timeLimitStr != NULL && strlen(timeLimitStr) > 0)
 		Syn_Frame::setTimeLimit(stoi(timeLimitStr));
+
+	// set search mode
+	const char *searchModeStr = getenv("SEARCH_MODE");
+	if (searchModeStr != NULL && strlen(searchModeStr) > 0)
+		Syn_Frame::setTimeLimit(stoi(searchModeStr));
 	
 	const char *verboseStr = getenv("VERBOSE");
     int verbose = false;

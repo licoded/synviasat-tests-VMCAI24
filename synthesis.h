@@ -30,6 +30,12 @@ typedef enum
     Incomplete_Y
 } Signal;
 
+typedef enum
+{
+    SAT_Trace,
+    One_Step,
+} SearchMode;
+
 // main entry
 bool is_realizable(aalta_formula *src_formula, unordered_set<string> &env_var, const struct timeval &prog_start, bool verbose = false);
 
@@ -39,6 +45,8 @@ public:
     static int print_state_cnt;
     static unordered_map<int, string> print_states;
     static string get_print_id(int state_id);
+
+    static SearchMode search_mode;
 
     // number of variables
     static int num_varX_;
@@ -168,6 +176,7 @@ aalta_formula *xnf(aalta_formula *af);
 inline bool EdgeConstraintIsUnsat(aalta_formula *edge)
 {
     edge = edge->add_tail();
+    // just check_tail, so no matter AAAI2021 or VMCAI2024, always use CARChecker
     CARChecker checker(edge, false, false);
     return !(checker.check());
 }
