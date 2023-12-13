@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 	// set search mode
 	const char *searchModeStr = getenv("SEARCH_MODE");
 	if (searchModeStr != NULL && strlen(searchModeStr) > 0)
-		Syn_Frame::setTimeLimit(stoi(searchModeStr));
+		Syn_Frame::search_mode = SearchMode(stoi(searchModeStr));
 	
 	const char *verboseStr = getenv("VERBOSE");
     int verbose = false;

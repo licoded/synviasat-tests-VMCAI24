@@ -829,7 +829,6 @@ Status Expand_onestep(list<Syn_Frame *> &searcher, const struct timeval &prog_st
 
 Status Expand(list<Syn_Frame *> &searcher, const struct timeval &prog_start, bool verbose)
 {
-    if (Syn_Frame::search_mode == SAT_Trace)
     switch (Syn_Frame::search_mode)
     {
     case SAT_Trace:
