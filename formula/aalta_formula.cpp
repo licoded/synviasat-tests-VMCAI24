@@ -266,10 +266,8 @@ aalta_formula::is_conflict (aalta_formula *af1, aalta_formula *af2)
           af2->split (And, *af_list, false);
           break;
         default:
-          //          return (af1->_op == Not && af1->_right->unique () == af2->unique ())
-          //                  || (af2->_op == Not && af2->_right->unique () == af1->unique ());
-          return (af1->_op == Not && af1->_right->_op == af2->_op)
-                  || (af2->_op == Not && af2->_right->_op == af1->_op);
+          return (af1->_op == Not && af1->_right->unique () == af2->unique ())
+                  || (af2->_op == Not && af2->_right->unique () == af1->unique ());
         }
       break;
     }
